@@ -2,7 +2,8 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-
+using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.Mapper;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +19,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 #endregion
-
+builder.Services.AddScoped<IMapper<Role, RoleDto>, RoleMapper>();
 #region 🔹 Swagger + JWT Auth UI
 builder.Services.AddSwaggerGen(options =>
 {
@@ -89,6 +90,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     };
 });
 #endregion
+
 
 // #region 🔹 Services
 // builder.Services.AddScoped<IJwtService, JwtService>();

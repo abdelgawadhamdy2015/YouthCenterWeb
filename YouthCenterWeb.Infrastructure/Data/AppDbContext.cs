@@ -49,6 +49,15 @@ namespace YouthCenterWeb.Data
                 .WithMany(y => y.Users)
                 .HasForeignKey(u => u.YouthCenterId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+
+            modelBuilder.Entity<Reservation>()
+                .Property(x => x.TotalPrice)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<YouthCenter>()
+                .Property(x => x.PricePerHour)
+                .HasPrecision(18, 2);
             modelBuilder.Entity<YouthCenter>().HasData(new YouthCenter { Id = 1, Name = "c1", Mobile = "1" }, new YouthCenter { Id = 2, Name = "c2", Mobile = "2" }, new YouthCenter { Id = 3, Name = "c3", Mobile = "3" });
 
             modelBuilder.Entity<Role>().HasData(new Role { Id = 1, Name = "User" }, new Role { Id = 2, Name = "Admin" }, new Role { Id = 3, Name = "SuperAdmin" });

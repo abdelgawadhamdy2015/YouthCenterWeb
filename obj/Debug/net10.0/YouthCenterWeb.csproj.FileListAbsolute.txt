@@ -229,3 +229,6 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.genruntimeconfig.cache
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/ref/YouthCenterWeb.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/appsettings.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/AutoMapper.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/AutoMapper.Extensions.Microsoft.DependencyInjection.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.sourcelink.json

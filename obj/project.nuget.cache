@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "JuVNPBz6Avc=",
+  "dgSpecHash": "JZHuW2XdUbo=",
   "success": true,
   "projectFilePath": "/Users/taif/Desktop/ttech/web/YouthCenterWeb/YouthCenterWeb.csproj",
   "expectedPackageFiles": [
+    "/Users/taif/.nuget/packages/automapper/16.1.1/automapper.16.1.1.nupkg.sha512",
+    "/Users/taif/.nuget/packages/automapper.extensions.microsoft.dependencyinjection/12.0.1/automapper.extensions.microsoft.dependencyinjection.12.0.1.nupkg.sha512",
     "/Users/taif/.nuget/packages/azure.core/1.47.1/azure.core.1.47.1.nupkg.sha512",
     "/Users/taif/.nuget/packages/azure.identity/1.14.2/azure.identity.1.14.2.nupkg.sha512",
     "/Users/taif/.nuget/packages/bcrypt.net-next/4.0.3/bcrypt.net-next.4.0.3.nupkg.sha512",
@@ -31,12 +33,12 @@
     "/Users/taif/.nuget/packages/microsoft.extensions.dependencymodel/10.0.6/microsoft.extensions.dependencymodel.10.0.6.nupkg.sha512",
     "/Users/taif/.nuget/packages/microsoft.identity.client/4.73.1/microsoft.identity.client.4.73.1.nupkg.sha512",
     "/Users/taif/.nuget/packages/microsoft.identity.client.extensions.msal/4.73.1/microsoft.identity.client.extensions.msal.4.73.1.nupkg.sha512",
-    "/Users/taif/.nuget/packages/microsoft.identitymodel.abstractions/8.0.1/microsoft.identitymodel.abstractions.8.0.1.nupkg.sha512",
-    "/Users/taif/.nuget/packages/microsoft.identitymodel.jsonwebtokens/8.0.1/microsoft.identitymodel.jsonwebtokens.8.0.1.nupkg.sha512",
-    "/Users/taif/.nuget/packages/microsoft.identitymodel.logging/8.0.1/microsoft.identitymodel.logging.8.0.1.nupkg.sha512",
+    "/Users/taif/.nuget/packages/microsoft.identitymodel.abstractions/8.14.0/microsoft.identitymodel.abstractions.8.14.0.nupkg.sha512",
+    "/Users/taif/.nuget/packages/microsoft.identitymodel.jsonwebtokens/8.14.0/microsoft.identitymodel.jsonwebtokens.8.14.0.nupkg.sha512",
+    "/Users/taif/.nuget/packages/microsoft.identitymodel.logging/8.14.0/microsoft.identitymodel.logging.8.14.0.nupkg.sha512",
     "/Users/taif/.nuget/packages/microsoft.identitymodel.protocols/8.0.1/microsoft.identitymodel.protocols.8.0.1.nupkg.sha512",
     "/Users/taif/.nuget/packages/microsoft.identitymodel.protocols.openidconnect/8.0.1/microsoft.identitymodel.protocols.openidconnect.8.0.1.nupkg.sha512",
-    "/Users/taif/.nuget/packages/microsoft.identitymodel.tokens/8.0.1/microsoft.identitymodel.tokens.8.0.1.nupkg.sha512",
+    "/Users/taif/.nuget/packages/microsoft.identitymodel.tokens/8.14.0/microsoft.identitymodel.tokens.8.14.0.nupkg.sha512",
     "/Users/taif/.nuget/packages/microsoft.openapi/1.6.14/microsoft.openapi.1.6.14.nupkg.sha512",
     "/Users/taif/.nuget/packages/microsoft.sqlserver.server/1.0.0/microsoft.sqlserver.server.1.0.0.nupkg.sha512",
     "/Users/taif/.nuget/packages/microsoft.visualstudio.solutionpersistence/1.0.52/microsoft.visualstudio.solutionpersistence.1.0.52.nupkg.sha512",
@@ -60,5 +62,18 @@
     "/Users/taif/.nuget/packages/system.security.cryptography.pkcs/9.0.4/system.security.cryptography.pkcs.9.0.4.nupkg.sha512",
     "/Users/taif/.nuget/packages/system.security.cryptography.protecteddata/9.0.4/system.security.cryptography.protecteddata.9.0.4.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1608",
+      "level": "Warning",
+      "message": "Detected package version outside of dependency constraint: AutoMapper.Extensions.Microsoft.DependencyInjection 12.0.1 requires AutoMapper (= 12.0.1) but version AutoMapper 16.1.1 was resolved.",
+      "projectPath": "/Users/taif/Desktop/ttech/web/YouthCenterWeb/YouthCenterWeb.csproj",
+      "warningLevel": 1,
+      "filePath": "/Users/taif/Desktop/ttech/web/YouthCenterWeb/YouthCenterWeb.csproj",
+      "libraryId": "AutoMapper",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    }
+  ]
 }

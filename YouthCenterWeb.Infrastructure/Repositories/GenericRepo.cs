@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using YouthCenterWeb.Data;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
@@ -15,11 +16,32 @@ public class GenericRepo<T> : IGenericRepo<T> where T : class
         _dbSet = _context.Set<T>();
     }
 
-    public async Task<List<T>> GetAllAsync()
-        => await _dbSet.ToListAsync();
+    // جلب الكل مع إمكانية إضافة Include
+    public async Task<List<T>> GetAllAsync(params Expression<Func<T, object>>[] includes)
+    {
+        IQueryable<T> query = _dbSet;
 
-    public async Task<T?> GetByIdAsync(int id)
-        => await _dbSet.FindAsync(id);
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+
+        return await query.AsNoTracking().ToListAsync();
+    }
+
+    // جلب عنصر واحد عن طريق ID مع Include
+    public async Task<T?> GetByIdAsync(int id, params Expression<Func<T, object>>[] includes)
+    {
+        IQueryable<T> query = _dbSet;
+
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+
+        // ملاحظة: نفترض أن اسم حقل المفتاح هو "Id" في جميع الجداول
+        return await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
+    }
 
     public async Task<T> AddAsync(T entity)
     {
@@ -35,7 +57,7 @@ public class GenericRepo<T> : IGenericRepo<T> where T : class
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var entity = await GetByIdAsync(id);
+        var entity = await _dbSet.FindAsync(id);
         if (entity == null) return false;
 
         _dbSet.Remove(entity);
@@ -43,5 +65,7 @@ public class GenericRepo<T> : IGenericRepo<T> where T : class
     }
 
     public async Task SaveChangesAsync()
-        => await _context.SaveChangesAsync();
+    {
+        await _context.SaveChangesAsync();
+    }
 }
