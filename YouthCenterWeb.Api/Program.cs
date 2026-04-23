@@ -19,7 +19,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 #endregion
-builder.Services.AddScoped<IMapper<Role, RoleDto>, RoleMapper>();
+
 #region 🔹 Swagger + JWT Auth UI
 builder.Services.AddSwaggerGen(options =>
 {

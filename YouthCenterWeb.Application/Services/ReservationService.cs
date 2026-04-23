@@ -3,80 +3,70 @@ using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
 using YouthCenterWeb.Models;
 
-namespace YouthCenterWeb.Application.Services;
-
-public class ReservationService : IReservationService
+namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
-    private readonly IReservationRepo _repo;
-
-    public ReservationService(IReservationRepo repo)
+    public class ReservationService(IReservationRepo repo, IMapper<Reservation, ReservationDto, CreateReservationDto> mapper)
+    : IReservationService
     {
-        _repo = repo;
-    }
-
-    public async Task<List<ReservationDto>> GetAllAsync()
-    {
-        var data = await _repo.GetAllWithRelationsAsync();
-
-        return data.Select(x => new ReservationDto
+        private readonly IReservationRepo _repo = repo;
+        private readonly IMapper<Reservation, ReservationDto, CreateReservationDto> _mapper = mapper;
+        public async Task<List<ReservationDto>> GetAllAsync()
         {
-            Id = x.Id,
-            Date = x.Date,
-            StartTime = x.StartTime,
-            EndTime = x.EndTime,
-            Username = x.User?.Name,
-            YouthCenterName = x.YouthCenter?.Name,
-            TotalPrice = x.TotalPrice
-        }).ToList();
-    }
+            var data = await _repo.GetAllWithRelationsAsync();
 
-    public async Task<ReservationDto?> GetByIdAsync(int id)
-    {
-        var x = await _repo.GetByIdWithRelationsAsync(id);
-        if (x == null) return null;
+            return data
+                .Select(_mapper.ToDto)
+                .ToList();
+        }
 
-        return new ReservationDto
+        public async Task<List<ReservationDto>> GetUserReservationsAsync(int userId)
         {
-            Id = x.Id,
-            Date = x.Date,
-            StartTime = x.StartTime,
-            EndTime = x.EndTime,
-            Username = x.User?.Name,
-            YouthCenterName = x.YouthCenter?.Name,
-            TotalPrice = x.TotalPrice
-        };
-    }
+            var reservations = await _repo.GetUserReservationsAsync(userId);
 
-    public async Task<ReservationDto> CreateAsync(CreateReservationDto dto)
-    {
-        var entity = new Reservation
+            return reservations
+                .Select(_mapper.ToDto)
+                .ToList();
+        }
+        public async Task<List<ReservationDto>> GetYouthCenterReservationsAsync(int youthCenterId)
         {
-            Date = dto.Date,
-            StartTime = dto.StartTime,
-            EndTime = dto.EndTime,
-            UserId = dto.UserId,
-            ActivityId = dto.ActivityId,
-            YouthCenterId = dto.YouthCenterId
-        };
-
-        await _repo.AddAsync(entity);
-        await _repo.SaveChangesAsync();
-
-        return new ReservationDto
+            var reservations = await _repo.GetYouthCenterReservationsAsync(youthCenterId);
+            return reservations.Select(_mapper.ToDto).ToList();
+        }
+        public async Task<List<ReservationDto>> GetReservationsByStatusAsync(ReservationStatus reservationStatus)
         {
-            Id = entity.Id,
-            Date = entity.Date,
-            StartTime = entity.StartTime,
-            EndTime = entity.EndTime
-        };
-    }
+            var reservations = await _repo.GetReservationsByStatusAsync(reservationStatus);
 
-    public async Task<bool> DeleteAsync(int id)
-    {
-        var result = await _repo.DeleteAsync(id);
-        if (!result) return false;
+            return reservations.Select(_mapper.ToDto).ToList();
+        }
+        public async Task<ReservationDto?> GetByIdAsync(int id)
+        {
+            var entity = await _repo.GetByIdWithRelationsAsync(id);
 
-        await _repo.SaveChangesAsync();
-        return true;
+            return entity == null ? null : _mapper.ToDto(entity);
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var result = await _repo.DeleteAsync(id);
+            if (!result) return false;
+
+            await _repo.SaveChangesAsync();
+            return true;
+        }
+
+
+
+        public async Task<ReservationDto> CreateAsync(CreateReservationDto dto)
+        {
+
+            var entity = _mapper.CreateEntity(dto);
+
+            await _repo.AddAsync(entity);
+            await _repo.SaveChangesAsync();
+
+            return _mapper.ToDto(entity);
+        }
+
+
     }
 }

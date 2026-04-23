@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 
@@ -21,8 +22,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 Result = 0,
                 Alert = new Alert
                 {
-                    MessageAr = " لا يوجد بيانات",
-                    MessageEn = "No Data"
+                    MessageAr = Messages.Data.NoDataAr,
+                    MessageEn = Messages.Data.NoDataEn
                 }
             });
             return Ok(new BaseResponse<List<RoleDto>>
@@ -31,8 +32,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 Data = roles,
                 Alert = new Alert
                 {
-                    MessageAr = "تم العثور على البيانات",
-                    MessageEn = "Roles found"
+                    MessageAr = Messages.Data.FoundAr,
+                    MessageEn = Messages.Data.FoundEn
                 }
             });
         }

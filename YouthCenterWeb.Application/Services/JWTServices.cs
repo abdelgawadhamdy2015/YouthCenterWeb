@@ -14,11 +14,10 @@ public class JwtService(IConfiguration config) : IJwtService
     {
         var claims = new List<Claim>
         {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()?? string.Empty),
             new(ClaimTypes.Name, user.Email?? string.Empty),
-            new(ClaimTypes.UserData, user?.Id.ToString()?? string.Empty)
+
         };
-
-
 
         var key = new SymmetricSecurityKey(
 

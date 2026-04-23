@@ -1,5 +1,8 @@
-public interface IMapper<TEntity, TDto>
+public interface IMapper<TEntity, TDto, TCreateDto>
 {
     TDto ToDto(TEntity entity);
     TEntity ToEntity(TDto dto);
+
+    TEntity CreateEntity(TCreateDto createDto);
+
 }

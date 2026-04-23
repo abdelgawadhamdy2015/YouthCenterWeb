@@ -1,3 +1,5 @@
+using YouthCenterWeb.Data.DTOs;
+
 namespace YouthCenterWeb.DTOs
 {
     public class ReservationDto
@@ -24,5 +26,6 @@ namespace YouthCenterWeb.DTOs
         public string? YouthCenterName { get; set; } = string.Empty;
 
         public double DurationHours { get; set; }
+
     }
 }

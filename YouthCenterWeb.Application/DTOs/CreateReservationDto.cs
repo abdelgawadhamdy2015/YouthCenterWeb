@@ -1,4 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using AutoMapper.Configuration.Annotations;
+using Microsoft.AspNetCore.Mvc;
 
 namespace YouthCenterWeb.Data.DTOs
 {
@@ -21,5 +24,6 @@ namespace YouthCenterWeb.Data.DTOs
 
         [Required]
         public int YouthCenterId { get; set; }
+
     }
 }

@@ -4,13 +4,13 @@ using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
-    public class GenericService<TEntity, TDto>(
+    public class GenericService<TEntity, TDto, TCreateDto>(
         IGenericRepo<TEntity> repo,
-        IMapper<TEntity, TDto> mapper) : IGenericService<TEntity, TDto>
+        IMapper<TEntity, TDto, TCreateDto> mapper) : IGenericService<TEntity, TDto>
         where TEntity : class
     {
         private readonly IGenericRepo<TEntity> _repo = repo;
-        private readonly IMapper<TEntity, TDto> _mapper = mapper;
+        private readonly IMapper<TEntity, TDto, TCreateDto> _mapper = mapper;
 
         public async Task<List<TDto>> GetAllAsync(params Expression<Func<TEntity, object>>[] includes)
         {
