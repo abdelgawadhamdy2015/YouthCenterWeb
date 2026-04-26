@@ -5,6 +5,7 @@ using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 
 namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 {
@@ -32,8 +33,24 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
             });
         }
 
-        [HttpGet("UserId")]
-        public async Task<IActionResult> GetUserReservations(int userId)
+        [HttpPost("Filters")]
+        public async Task<IActionResult> GetFiltersReservations(FilteredReservationDto dto)
+        {
+            var result = await _service.GetFiltersReservationsAsync(dto);
+
+            return Ok(new BaseResponse<List<ReservationDto>>
+            {
+                Result = result.Count != 0 ? 1 : 0,
+                Data = result,
+                Alert = new Alert
+                {
+                    MessageAr = result.Count != 0 ? Messages.Data.FoundAr : Messages.Data.NoDataAr,
+                    MessageEn = result.Count != 0 ? Messages.Data.FoundEn : Messages.Data.NoDataEn
+                }
+            });
+        }
+        [HttpGet("User")]
+        public async Task<IActionResult> GetUserReservations(int? userId)
         {
             var result = await _service.GetUserReservationsAsync(userId);
 

@@ -2,16 +2,21 @@ using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
+using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
-    public class ReservationService(IReservationRepo repo, IMapper<Reservation, ReservationDto, CreateReservationDto> mapper)
+    public class ReservationService(IReservationRepo repo, IMapper<Reservation, ReservationDto, CreateReservationDto> mapper, IUserService userService)
     : IReservationService
     {
         private readonly IReservationRepo _repo = repo;
         private readonly IMapper<Reservation, ReservationDto, CreateReservationDto> _mapper = mapper;
+        private readonly IUserService _userService = userService;
+
         public async Task<List<ReservationDto>> GetAllAsync()
         {
+
             var data = await _repo.GetAllWithRelationsAsync();
 
             return data
@@ -19,9 +24,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 .ToList();
         }
 
-        public async Task<List<ReservationDto>> GetUserReservationsAsync(int userId)
+        public async Task<List<ReservationDto>> GetUserReservationsAsync(int? userId)
         {
-            var reservations = await _repo.GetUserReservationsAsync(userId);
+            var roles = _userService.RoleId;
+            if (roles == 1 || userId == null)
+            {
+                userId = _userService.UserId;
+            }
+
+            var reservations = await _repo.GetUserReservationsAsync(userId ?? 0);
 
             return reservations
                 .Select(_mapper.ToDto)
@@ -67,6 +78,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             return _mapper.ToDto(entity);
         }
 
-
+        public async Task<List<ReservationDto>> GetFiltersReservationsAsync(FilteredReservationDto dto)
+        {
+            var reservations = await _repo.GetFiltersReservationsAsync(dto);
+            return reservations.Select(_mapper.ToDto).ToList();
+        }
     }
 }

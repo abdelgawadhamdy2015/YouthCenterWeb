@@ -45,6 +45,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     Email = user.Email,
                     Name = user.Name,
                     Phone = user.Mobile ?? "",
+                    RoleId = user.RoleId,
                     Token = _jwtService.GenerateToken(user)
                 },
                 Alert = new Alert

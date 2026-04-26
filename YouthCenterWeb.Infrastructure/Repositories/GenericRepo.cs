@@ -30,7 +30,7 @@ public class GenericRepo<T> : IGenericRepo<T> where T : class
     }
 
     // جلب عنصر واحد عن طريق ID مع Include
-    public async Task<T?> GetByIdAsync(int id, params Expression<Func<T, object>>[] includes)
+    public async Task<T?> GetByIdAsync(int? id, params Expression<Func<T, object>>[] includes)
     {
         IQueryable<T> query = _dbSet;
 

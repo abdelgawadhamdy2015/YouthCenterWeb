@@ -15,7 +15,9 @@ public class JwtService(IConfiguration config) : IJwtService
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()?? string.Empty),
-            new(ClaimTypes.Name, user.Email?? string.Empty),
+                        new(ClaimTypes.Role, user.RoleId.ToString()?? string.Empty),
+
+            new(ClaimTypes.Email, user.Email?? string.Empty),
 
         };
 

@@ -8,4 +8,6 @@ public interface IAuthService
 {
     Task<BaseResponse<LoginData>> LoginAsync(LoginDto dto);
     Task<BaseResponse<LoginData>> RegisterAsync(CreateUserDto dto);
+
+
 }
