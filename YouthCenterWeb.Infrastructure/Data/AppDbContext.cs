@@ -25,7 +25,7 @@ namespace YouthCenterWeb.Data
             // 1. Configure Reservation -> Activity
             modelBuilder.Entity<Reservation>()
                 .HasOne(r => r.Activity)
-                .WithMany(a => a.Reservations)
+                .WithMany()
                 .HasForeignKey(r => r.ActivityId)
                 .OnDelete(DeleteBehavior.Restrict); // Change to Restrict
 

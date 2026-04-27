@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using YouthCenterWeb.Data;
 
@@ -11,9 +12,11 @@ using YouthCenterWeb.Data;
 namespace YouthCenterWeb.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260427081539_e1")]
+    partial class e1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -26,18 +29,23 @@ namespace YouthCenterWeb.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasJsonPropertyName("id");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasJsonPropertyName("name");
+
+                    b.Property<int>("YouthCenterId")
+                        .HasColumnType("int")
+                        .HasJsonPropertyName("youthCenterId");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("YouthCenterId");
 
                     b.ToTable("Activities");
                 });
@@ -171,6 +179,10 @@ namespace YouthCenterWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.PrimitiveCollection<string>("ActivitiesIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
@@ -195,54 +207,47 @@ namespace YouthCenterWeb.Migrations
 
                     b.ToTable("YouthCenters");
 
+                    b.HasAnnotation("Relational:JsonPropertyName", "youthCenter");
+
                     b.HasData(
                         new
                         {
                             Id = 1,
+                            ActivitiesIds = "[]",
                             Mobile = "1",
                             Name = "c1"
                         },
                         new
                         {
                             Id = 2,
+                            ActivitiesIds = "[]",
                             Mobile = "2",
                             Name = "c2"
                         },
                         new
                         {
                             Id = 3,
+                            ActivitiesIds = "[]",
                             Mobile = "3",
                             Name = "c3"
                         });
                 });
 
-            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", b =>
+            modelBuilder.Entity("YouthCenterWeb.Models.Activity", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                    b.HasOne("YouthCenterWeb.Models.YouthCenter", "YouthCenter")
+                        .WithMany("Activities")
+                        .HasForeignKey("YouthCenterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ActivityId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("YouthCenterId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActivityId");
-
-                    b.HasIndex("YouthCenterId");
-
-                    b.ToTable("YouthCenterActivity");
+                    b.Navigation("YouthCenter");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.Models.Reservation", b =>
                 {
                     b.HasOne("YouthCenterWeb.Models.Activity", "Activity")
-                        .WithMany()
+                        .WithMany("Reservations")
                         .HasForeignKey("ActivityId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -284,23 +289,9 @@ namespace YouthCenterWeb.Migrations
                     b.Navigation("YouthCenter");
                 });
 
-            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", b =>
+            modelBuilder.Entity("YouthCenterWeb.Models.Activity", b =>
                 {
-                    b.HasOne("YouthCenterWeb.Models.Activity", "Activity")
-                        .WithMany()
-                        .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("YouthCenterWeb.Models.YouthCenter", "YouthCenter")
-                        .WithMany("YouthCenterActivities")
-                        .HasForeignKey("YouthCenterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Activity");
-
-                    b.Navigation("YouthCenter");
+                    b.Navigation("Reservations");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.Models.User", b =>
@@ -310,11 +301,11 @@ namespace YouthCenterWeb.Migrations
 
             modelBuilder.Entity("YouthCenterWeb.Models.YouthCenter", b =>
                 {
+                    b.Navigation("Activities");
+
                     b.Navigation("Reservations");
 
                     b.Navigation("Users");
-
-                    b.Navigation("YouthCenterActivities");
                 });
 #pragma warning restore 612, 618
         }

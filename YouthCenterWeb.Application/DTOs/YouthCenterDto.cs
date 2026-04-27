@@ -1,3 +1,5 @@
+using YouthCenterWeb.Models;
+
 namespace YouthCenterWeb.Data.DTOs
 {
     public class YouthCenterDto
@@ -8,10 +10,15 @@ namespace YouthCenterWeb.Data.DTOs
 
         public string Mobile { get; set; } = string.Empty;
 
-        public string? Address { get; set; }
+        public string? Location { get; set; }
 
         public decimal? PricePerHour { get; set; }
 
         public string? Description { get; set; }
+
+        public List<int> ActivitiesIds { get; set; } = new List<int>();
+        public List<string> ActivitiesNames { get; set; } = new List<string>();
+
+        public List<Activity>? Activities { get; set; }
     }
 }

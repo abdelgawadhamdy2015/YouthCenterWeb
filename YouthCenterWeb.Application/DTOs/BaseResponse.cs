@@ -13,7 +13,7 @@ namespace YouthCenterWeb.Models
         [JsonPropertyName("data")]
         public T? Data { get; set; }
 
-        [JsonPropertyName("alart")]
+        [JsonPropertyName("alert")]
         public Alert? Alert { get; set; }
 
         [JsonPropertyName("totalCount")]

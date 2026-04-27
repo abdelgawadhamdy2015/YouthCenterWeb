@@ -96,6 +96,15 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             query = query.Where(x => x.StartTime >= dto.StartTime);
         if (dto.EndTime != null && dto.EndTime != TimeOnly.MinValue)
             query = query.Where(x => x.EndTime <= dto.EndTime);
+        if (dto.YouthCenterId != null && dto.YouthCenterId != 0)
+            query = query.Where(x => x.YouthCenterId == dto.YouthCenterId);
+
+        if (dto.ActivityId != null && dto.ActivityId != 0)
+            query = query.Where(x => x.ActivityId == dto.ActivityId);
+        if (dto.UserId != null && dto.UserId != 0)
+            query = query.Where(x => x.UserId == dto.UserId);
+        if (dto.status != null)
+            query = query.Where(x => x.Status == dto.status);
         return query.ToListAsync();
     }
 }

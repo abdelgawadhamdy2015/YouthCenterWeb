@@ -6,7 +6,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
     public class GenericService<TEntity, TDto, TCreateDto>(
         IGenericRepo<TEntity> repo,
-        IMapper<TEntity, TDto, TCreateDto> mapper) : IGenericService<TEntity, TDto>
+        IMapper<TEntity, TDto, TCreateDto> mapper) : IGenericService<TEntity, TDto, TCreateDto>
         where TEntity : class
     {
         private readonly IGenericRepo<TEntity> _repo = repo;
@@ -26,9 +26,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             return entity == null ? default : _mapper.ToDto(entity);
         }
 
-        public async Task<TDto> CreateAsync(TDto dto)
+        public async Task<TDto> CreateAsync(TCreateDto dto)
         {
-            var entity = _mapper.ToEntity(dto);
+            var entity = _mapper.CreateEntity(dto);
             var result = await _repo.AddAsync(entity);
             await _repo.SaveChangesAsync();
             return _mapper.ToDto(result);
@@ -40,5 +40,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             if (deleted) await _repo.SaveChangesAsync();
             return deleted;
         }
+
     }
 }

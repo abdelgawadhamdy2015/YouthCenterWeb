@@ -8,7 +8,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Extensions
         public static void AddCrud<TEntity, TDto, TCreateDto>(this IServiceCollection services)
             where TEntity : class
         {
-            services.AddScoped<IGenericService<TEntity, TDto>, GenericService<TEntity, TDto, TCreateDto>>();
+            services.AddScoped<IGenericService<TEntity, TDto, TCreateDto>, GenericService<TEntity, TDto, TCreateDto>>();
 
         }
     }

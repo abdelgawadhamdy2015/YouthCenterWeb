@@ -11,6 +11,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
 
         public TimeOnly? EndTime { get; set; }
 
+        public int? YouthCenterId { get; set; }
+
+        public int? ActivityId { get; set; }
+
+        public int? UserId { get; set; }
+
+        public ReservationStatus? status { get; set; }
 
 
 

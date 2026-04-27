@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using YouthCenterWeb.Models;
 
 namespace YouthCenterWeb.Data.DTOs
 {
@@ -10,10 +11,11 @@ namespace YouthCenterWeb.Data.DTOs
         [Required]
         public string Mobile { get; set; } = string.Empty;
 
-        public string? Address { get; set; }
+        public string? Location { get; set; }
 
         public decimal? PricePerHour { get; set; }
 
         public string? Description { get; set; }
+        public List<int>? ActivitiesIds { get; set; }
     }
 }

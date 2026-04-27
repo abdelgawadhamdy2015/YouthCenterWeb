@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.Models
 {
@@ -13,21 +14,23 @@ namespace YouthCenterWeb.Models
         [MaxLength(20)]
         public string Mobile { get; set; } = string.Empty;
 
-        public string? Address { get; set; }
+        public string? Location { get; set; }
 
         // 💰 استخدم decimal بدل double
         public decimal? PricePerHour { get; set; }
 
         public string? Description { get; set; }
 
-        // 🔗 Activities
-        public ICollection<Activity> Activities { get; set; } = new List<Activity>();
+        // 🔗 Youth Center Activities
+
+        public List<YouthCenterActivity> YouthCenterActivities { get; set; } = new();
+
 
         // 🔗 Users (مخفي عشان يمنع loop)
         [JsonIgnore]
-        public ICollection<User> Users { get; set; } = new List<User>();
+        public List<User> Users { get; set; } = new List<User>();
 
         // 🔗 Reservations
-        public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
+        public List<Reservation> Reservations { get; set; } = new List<Reservation>();
     }
 }

@@ -9,9 +9,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class RoleController(IGenericService<Role, RoleDto> roleService) : ControllerBase
+    public class RoleController(IGenericService<Role, RoleDto, RoleDto> roleService) : ControllerBase
     {
-        private readonly IGenericService<Role, RoleDto> service = roleService;
+        private readonly IGenericService<Role, RoleDto, RoleDto> service = roleService;
 
         [HttpGet]
         public async Task<IActionResult> getAllRoles()

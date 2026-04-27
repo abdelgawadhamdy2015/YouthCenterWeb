@@ -9,10 +9,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
-    public class ActivityController(IGenericService<Activity, ActivityDto> genericService) : ControllerBase
+    public class ActivityController(IGenericService<Activity, ActivityDto, CreateActivityDto> genericService) : ControllerBase
     {
-        private readonly IGenericService<Activity, ActivityDto> service = genericService;
+        private readonly IGenericService<Activity, ActivityDto, CreateActivityDto> service = genericService;
 
 
 
@@ -21,8 +20,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         {
 
             var activities = await service.GetAllAsync(
-                a => a.YouthCenter,
-                a => a.Reservations
+
             );
 
             if (activities.Count == 0) return NotFound(new BaseResponse<RoleDto>
@@ -47,5 +45,22 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
             });
         }
 
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> CreateActivity(CreateActivityDto dto)
+        {
+            var created = await service.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetActivities), new { id = created.Id }, new BaseResponse<ActivityDto>
+            {
+                Result = 1,
+                Data = created,
+                Alert = new Alert
+                {
+                    MessageAr = Messages.Data.CreatedAr,
+                    MessageEn = Messages.Data.CreatedEn
+                }
+            });
+
+        }
     }
 }
