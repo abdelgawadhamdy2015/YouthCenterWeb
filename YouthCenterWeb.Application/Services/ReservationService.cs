@@ -69,12 +69,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
         public async Task<ReservationDto> CreateAsync(CreateReservationDto dto)
         {
+            var activity = await _repo.GetYouthCenterActivity(dto.YouthCenterActivityId);
 
             var entity = _mapper.CreateEntity(dto);
-
+            entity.TotalPrice = activity != null ? (activity.Price * entity.DurationHours) : 0;
             await _repo.AddAsync(entity);
             await _repo.SaveChangesAsync();
-
             return _mapper.ToDto(entity);
         }
 

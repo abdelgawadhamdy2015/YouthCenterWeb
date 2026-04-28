@@ -6,11 +6,13 @@ using YouthCenterWeb.DTOs;
 using YouthCenterWeb.InterFaces;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.Services;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Extensions;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Application.Mapper;
 using YouthCenterWeb.YouthCenterWeb.Application.Mappers;
 using YouthCenterWeb.YouthCenterWeb.Application.Services;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 
@@ -36,7 +38,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure
             services.AddScoped<IMapper<Role, RoleDto, RoleDto>, RoleMapper>();
             services.AddScoped<IMapper<User, UserDto, CreateUserDto>, UserMapper>();
             services.AddScoped<IMapper<YouthCenter, YouthCenterDto, CreateYouthCenterDto>, YouthCenterMapper>();
-
+            services.AddScoped<IMapper<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>, YouthCenterActivityMapper>();
             // Repositories
             services.AddScoped<IAuthRepo, AuthRepo>();
             services.AddScoped<IReservationRepo, ReservationRepo>();
@@ -52,6 +54,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure
             services.AddCrud<Role, RoleDto, RoleDto>();
             services.AddCrud<Activity, ActivityDto, CreateActivityDto>();
             services.AddCrud<YouthCenter, YouthCenterDto, CreateYouthCenterDto>();
+            services.AddCrud<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>();
             services.AddScoped<IYouthCenterService, YouthCenterService>();
 
             return services;

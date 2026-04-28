@@ -14,8 +14,7 @@ namespace YouthCenterWeb.Data.DTOs
 
         public string? ImageUrl { get; set; }
 
-        [Required]
-        public int? YouthCenterId { get; set; } = null!;
+        public int? YouthCenterId { get; set; }
 
         [Required]
         public int RoleId { get; set; } = 1;

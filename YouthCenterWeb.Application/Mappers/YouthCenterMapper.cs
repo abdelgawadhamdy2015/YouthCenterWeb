@@ -1,5 +1,6 @@
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
 {
@@ -12,9 +13,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 Name = createDto.Name,
                 Location = createDto.Location,
                 Mobile = createDto.Mobile,
-                PricePerHour = createDto.PricePerHour,
                 Description = createDto.Description,
-
+                IsActive = createDto.IsActive
             };
         }
 
@@ -26,7 +26,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 Name = entity.Name,
                 Location = entity.Location,
                 Mobile = entity.Mobile,
-                PricePerHour = entity.PricePerHour,
+                IsActive = entity.IsActive,
                 Description = entity.Description,
                 ActivitiesIds = entity.YouthCenterActivities.Select(a => a.ActivityId).ToList(),
                 ActivitiesNames = entity.YouthCenterActivities.Select(a => a.Activity?.Name ?? "").ToList(),
@@ -41,9 +41,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 Name = dto.Name,
                 Location = dto.Location,
                 Mobile = dto.Mobile,
-                PricePerHour = dto.PricePerHour,
                 Description = dto.Description,
-
+                IsActive = dto.IsActive
             };
         }
 

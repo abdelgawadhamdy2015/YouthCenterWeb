@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.Models
 {
@@ -20,39 +21,32 @@ namespace YouthCenterWeb.Models
         [Required]
         public TimeOnly EndTime { get; set; }
 
+
         // 💰 السعر النهائي
-        public decimal? TotalPrice { get; set; } = 0;
+        public decimal TotalPrice { set; get; }
+
 
         // 📌 حالة الحجز
         public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
 
-        // 🔗 ===============================
-        // 🔗 User
-        // 🔗 ===============================
+
         public int UserId { get; set; }
 
-        [JsonIgnore] // ❗ مهم لتجنب loop
+        [ForeignKey("UserId")]
         public User? User { get; set; }
 
-        // 🔗 ===============================
-        // 🔗 Activity
-        // 🔗 ===============================
-        public int ActivityId { get; set; }
 
-        public Activity? Activity { get; set; }
+        public int YouthCenterActivityId { get; set; }
 
-        // 🔗 ===============================
-        // 🔗 YouthCenter (اختياري لكن مفيد)
-        // 🔗 ===============================
-        public int YouthCenterId { get; set; }
-
-        [JsonIgnore] // ❗ لتقليل حجم الـ JSON
-        public YouthCenter? YouthCenter { get; set; }
+        [ForeignKey("YouthCenterActivityId")]
+        public YouthCenterActivity? YouthCenterActivity { get; set; }
 
         // 🧠 مدة الحجز (مش متخزنة)
         [NotMapped]
-        public double DurationHours =>
-            (EndTime - StartTime).TotalHours;
+        public decimal DurationHours =>
+           (decimal)(EndTime - StartTime).TotalHours
+           ;
+
     }
 
 

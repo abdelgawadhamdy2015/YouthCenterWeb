@@ -1,4 +1,5 @@
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.Data.DTOs
 {
@@ -12,7 +13,6 @@ namespace YouthCenterWeb.Data.DTOs
 
         public string? Location { get; set; }
 
-        public decimal? PricePerHour { get; set; }
 
         public string? Description { get; set; }
 
@@ -20,5 +20,7 @@ namespace YouthCenterWeb.Data.DTOs
         public List<string> ActivitiesNames { get; set; } = new List<string>();
 
         public List<Activity>? Activities { get; set; }
+
+        public bool IsActive { get; set; } = true;
     }
 }

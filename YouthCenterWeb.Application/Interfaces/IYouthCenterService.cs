@@ -1,5 +1,6 @@
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Interfaces
 {

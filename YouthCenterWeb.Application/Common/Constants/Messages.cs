@@ -27,6 +27,9 @@ namespace YouthCenterWeb.Application.Common.Constants
 
             public const string CreatedEn = "Created Successfully";
             public const string CreatedAr = "تم الإنشاء بنجاح";
+
+            public const string CreationFailedEn = "Creation Failed";
+            public const string CreationFailedAr = "فشل الإنشاء";
         }
     }
 }

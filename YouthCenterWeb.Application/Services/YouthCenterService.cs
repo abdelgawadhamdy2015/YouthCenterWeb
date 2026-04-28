@@ -1,6 +1,7 @@
 using AutoMapper;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
@@ -15,7 +16,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             var youthCenter = _mapper.CreateEntity(dto);
 
-            var entity = await _youthCenterRepo.CreateAsync(youthCenter, dto.ActivitiesIds);
+            var entity = await _youthCenterRepo.CreateAsync(youthCenter);
 
             return _mapper.ToDto(entity);
 

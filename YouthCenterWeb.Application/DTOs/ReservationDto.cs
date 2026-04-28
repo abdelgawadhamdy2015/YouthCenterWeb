@@ -12,20 +12,18 @@ namespace YouthCenterWeb.DTOs
 
         public TimeOnly EndTime { get; set; }
 
-        public decimal? TotalPrice { get; set; } = 0;
+        public decimal? TotalPrice { get; set; }
 
         public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
 
         public int UserId { get; set; }
         public string? Username { get; set; } = string.Empty;
-        public int ActivityId { get; set; }
+        public int YouthCenterActivityId { get; set; }
         public string? ActivityName { get; set; } = string.Empty;
-
-        public int YouthCenterId { get; set; }
 
         public string? YouthCenterName { get; set; } = string.Empty;
 
-        public double DurationHours { get; set; }
+        public decimal DurationHours { get; set; }
 
     }
 }

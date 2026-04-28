@@ -31,6 +31,7 @@ namespace YouthCenterWeb.Models
         public Role? Role { get; set; }
 
         // 🔗 Reservations
+        [JsonIgnore] // ❗ لتقليل حجم الـ JSON
         public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 
         // 🧠 محسوبة مش متخزنة

@@ -1,21 +1,11 @@
-using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
-using YouthCenterWeb.Models;
-using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
-namespace YouthCenterWeb.Models
+namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 {
-    [PrimaryKey("Id")]
     public class Activity
     {
         public int Id { get; set; }
 
-        public string Name { get; set; } = null!; // Football, PlayStation
+        public string Name { get; set; } = string.Empty;
 
-        public string? Description { get; set; }
-        // 🔗 Youth Center Activities
-
-
-
+        public bool IsActive { get; set; } = true;
     }
-
 }

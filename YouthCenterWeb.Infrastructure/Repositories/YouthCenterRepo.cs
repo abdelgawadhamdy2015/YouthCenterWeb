@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Data;
 using YouthCenterWeb.Models;
-using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
 {
@@ -10,21 +9,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
     {
         private readonly AppDbContext _context = context;
 
-        public Task<YouthCenter> CreateAsync(YouthCenter youthCenter, List<int>? activitiesIds)
+        public Task<YouthCenter> CreateAsync(YouthCenter youthCenter)
         {
-            if (activitiesIds != null && activitiesIds.Count > 0)
-            {
-                var activities = _context.Activities.Where(a => activitiesIds.Contains(a.Id)).ToList();
-                foreach (var activity in activities)
-                {
-                    youthCenter.YouthCenterActivities.Add(new YouthCenterActivity
-                    {
-                        ActivityId = activity.Id,
-                        YouthCenter = youthCenter
-                    });
-                }
 
-            }
 
             _context.YouthCenters.Add(youthCenter);
             _context.SaveChanges();

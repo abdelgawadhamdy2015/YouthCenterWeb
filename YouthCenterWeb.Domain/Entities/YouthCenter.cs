@@ -17,7 +17,7 @@ namespace YouthCenterWeb.Models
         public string? Location { get; set; }
 
         // 💰 استخدم decimal بدل double
-        public decimal? PricePerHour { get; set; }
+        public bool IsActive { get; set; } = true;
 
         public string? Description { get; set; }
 
@@ -25,10 +25,6 @@ namespace YouthCenterWeb.Models
 
         public List<YouthCenterActivity> YouthCenterActivities { get; set; } = new();
 
-
-        // 🔗 Users (مخفي عشان يمنع loop)
-        [JsonIgnore]
-        public List<User> Users { get; set; } = new List<User>();
 
         // 🔗 Reservations
         public List<Reservation> Reservations { get; set; } = new List<Reservation>();

@@ -20,10 +20,11 @@ namespace YouthCenterWeb.Data.DTOs
         public int UserId { get; set; }
 
         [Required]
-        public int ActivityId { get; set; }
+        public int YouthCenterActivityId { get; set; }
 
-        [Required]
-        public int YouthCenterId { get; set; }
+        public decimal? TotalPrice { get; set; }
+
+
 
     }
 }

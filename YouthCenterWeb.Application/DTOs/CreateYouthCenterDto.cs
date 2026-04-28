@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations;
-using YouthCenterWeb.Models;
+using System.Text.Json.Serialization;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
-namespace YouthCenterWeb.Data.DTOs
+namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
 {
     public class CreateYouthCenterDto
     {
@@ -13,9 +14,10 @@ namespace YouthCenterWeb.Data.DTOs
 
         public string? Location { get; set; }
 
-        public decimal? PricePerHour { get; set; }
 
         public string? Description { get; set; }
-        public List<int>? ActivitiesIds { get; set; }
+        [JsonIgnore]
+        public List<YouthCenterActivity>? YouthCenterActivities { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }

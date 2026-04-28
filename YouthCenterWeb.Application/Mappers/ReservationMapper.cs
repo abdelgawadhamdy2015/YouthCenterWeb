@@ -3,7 +3,7 @@ using YouthCenterWeb.Models;
 using YouthCenterWeb.DTOs;
 using YouthCenterWeb.Data.DTOs;
 
-namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
+namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
 {
     public class ReservationMapper : IMapper<Reservation, ReservationDto, CreateReservationDto>
     {
@@ -15,16 +15,18 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
                 StartTime = createDto.StartTime,
                 EndTime = createDto.EndTime,
                 UserId = createDto.UserId,
-                ActivityId = createDto.ActivityId,
-                YouthCenterId = createDto.YouthCenterId,
-                Status = ReservationStatus.Pending
+                YouthCenterActivityId = createDto.YouthCenterActivityId,
+                Status = ReservationStatus.Pending,
+
             };
         }
 
 
         public ReservationDto ToDto(Reservation x)
         {
-            return new ReservationDto
+            Console.WriteLine($"Mapping Reservation with Id: {x.Id}, Date: {x.Date}, StartTime: {x.StartTime}, EndTime: {x.EndTime}, UserId: {x.UserId}, YouthCenterActivityId: {x.YouthCenterActivityId}, Status: {x.Status}");
+
+            var reservationDto = new ReservationDto
             {
                 Id = x.Id,
                 Date = x.Date,
@@ -32,11 +34,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
                 EndTime = x.EndTime,
                 UserId = x.UserId,
                 Username = x.User?.Name,
-                YouthCenterId = x.YouthCenterId,
+                YouthCenterActivityId = x.YouthCenterActivityId,
                 Status = x.Status,
-                YouthCenterName = x.YouthCenter?.Name,
-                TotalPrice = x.TotalPrice
+                YouthCenterName = x.YouthCenterActivity != null && x.YouthCenterActivity.YouthCenter != null ? x.YouthCenterActivity.YouthCenter.Name : null,
+                TotalPrice = x.TotalPrice,
+                DurationHours = x.DurationHours
             };
+            return reservationDto;
         }
 
         public Reservation ToEntity(ReservationDto dto)
@@ -47,8 +51,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
                 UserId = dto.UserId,
-                ActivityId = dto.ActivityId,
-                YouthCenterId = dto.YouthCenterId,
+                YouthCenterActivityId = dto.YouthCenterActivityId,
                 Status = dto.Status
             };
         }

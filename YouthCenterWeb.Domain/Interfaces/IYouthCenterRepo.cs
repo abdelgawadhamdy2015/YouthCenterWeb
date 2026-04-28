@@ -5,7 +5,7 @@ public interface IYouthCenterRepo
 {
     Task<YouthCenter?> GetByIdAsync(int id);
     Task<List<YouthCenter>> GetAllAsync();
-    Task<YouthCenter> CreateAsync(YouthCenter youthCenter, List<int>? activitiesIds);
+    Task<YouthCenter> CreateAsync(YouthCenter youthCenter);
     Task UpdateAsync(YouthCenter youthCenter);
     Task DeleteAsync(int id);
 }

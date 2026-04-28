@@ -50,7 +50,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
             });
         }
         [HttpGet("User")]
-        public async Task<IActionResult> GetUserReservations(int? userId)
+        public async Task<IActionResult> GetUserReservations([FromQuery] int? userId)
         {
             var result = await _service.GetUserReservationsAsync(userId);
 

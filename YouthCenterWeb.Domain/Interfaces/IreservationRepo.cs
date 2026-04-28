@@ -1,5 +1,6 @@
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.Application.Interfaces;
 
@@ -8,6 +9,7 @@ public interface IReservationRepo
     Task<List<Reservation>> GetAllWithRelationsAsync();
     Task<Reservation?> GetByIdWithRelationsAsync(int id);
     Task<List<Reservation>> GetUserReservationsAsync(int userId);
+    Task<YouthCenterActivity?> GetYouthCenterActivity(int youthCenterActivityId);
     Task<List<Reservation>> GetYouthCenterReservationsAsync(int youthCenterId);
     Task<List<Reservation>> GetReservationsByStatusAsync(ReservationStatus reservationStatus);
     Task<List<Reservation>> GetFiltersReservationsAsync(

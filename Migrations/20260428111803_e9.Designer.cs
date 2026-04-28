@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using YouthCenterWeb.Data;
 
@@ -11,9 +12,11 @@ using YouthCenterWeb.Data;
 namespace YouthCenterWeb.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428111803_e9")]
+    partial class e9
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,6 +33,9 @@ namespace YouthCenterWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("ActivityId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
@@ -42,20 +48,22 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("TotalPrice")
+                    b.Property<decimal?>("TotalPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
-                    b.Property<int>("YouthCenterActivityId")
+                    b.Property<int?>("YouthCenterActivityId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("YouthCenterId")
+                    b.Property<int>("YouthCenterId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ActivityId");
 
                     b.HasIndex("UserId");
 
@@ -196,7 +204,6 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("YouthCenterId")
@@ -208,30 +215,38 @@ namespace YouthCenterWeb.Migrations
 
                     b.HasIndex("YouthCenterId");
 
-                    b.ToTable("YouthCenterActivities");
+                    b.ToTable("YouthCenterActivity");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.Models.Reservation", b =>
                 {
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", "Activity")
+                        .WithMany()
+                        .HasForeignKey("ActivityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("YouthCenterWeb.Models.User", "User")
                         .WithMany("Reservations")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", "YouthCenterActivity")
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", null)
                         .WithMany("Reservations")
-                        .HasForeignKey("YouthCenterActivityId")
+                        .HasForeignKey("YouthCenterActivityId");
+
+                    b.HasOne("YouthCenterWeb.Models.YouthCenter", "YouthCenter")
+                        .WithMany("Reservations")
+                        .HasForeignKey("YouthCenterId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("YouthCenterWeb.Models.YouthCenter", null)
-                        .WithMany("Reservations")
-                        .HasForeignKey("YouthCenterId");
+                    b.Navigation("Activity");
 
                     b.Navigation("User");
 
-                    b.Navigation("YouthCenterActivity");
+                    b.Navigation("YouthCenter");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.Models.User", b =>
@@ -257,13 +272,13 @@ namespace YouthCenterWeb.Migrations
                     b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Activity", "Activity")
                         .WithMany()
                         .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("YouthCenterWeb.Models.YouthCenter", "YouthCenter")
-                        .WithMany("YouthCenterActivities")
+                        .WithMany("Activities")
                         .HasForeignKey("YouthCenterId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Activity");
@@ -278,9 +293,9 @@ namespace YouthCenterWeb.Migrations
 
             modelBuilder.Entity("YouthCenterWeb.Models.YouthCenter", b =>
                 {
-                    b.Navigation("Reservations");
+                    b.Navigation("Activities");
 
-                    b.Navigation("YouthCenterActivities");
+                    b.Navigation("Reservations");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", b =>

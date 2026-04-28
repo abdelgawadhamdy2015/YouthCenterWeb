@@ -1,5 +1,6 @@
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
 {

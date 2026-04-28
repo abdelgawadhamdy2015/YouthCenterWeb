@@ -4,6 +4,7 @@ using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 {
