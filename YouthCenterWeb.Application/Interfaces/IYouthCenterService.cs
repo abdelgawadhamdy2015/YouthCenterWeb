@@ -9,7 +9,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Interfaces
         Task<YouthCenterDto?> GetByIdAsync(int id);
         Task<List<YouthCenterDto>> GetAllAsync();
         Task<YouthCenterDto> CreateAsync(CreateYouthCenterDto dto);
-        Task UpdateAsync(int id, YouthCenterDto dto);
-        Task<bool> DeleteAsync(int id);
+        Task<YouthCenterDto> UpdateAsync(int id, UpdatedYouthCenterDto dto);
+        Task DeleteAsync(int id);
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
@@ -17,6 +18,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 
 
         [HttpGet]
+        [Authorize(Policies.RequireAuthenticated)]
         public async Task<IActionResult> GetActivities()
         {
 
@@ -24,7 +26,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 
             );
 
-            if (activities.Count == 0) return NotFound(new BaseResponse<RoleDto>
+            if (activities.Count == 0) return NotFound(new BaseResponse<ActivityDto>
             {
                 Result = 0,
                 Alert = new Alert
@@ -47,7 +49,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Policies.RequireAdmin)]
+
         public async Task<IActionResult> CreateActivity(CreateActivityDto dto)
         {
             var created = await service.CreateAsync(dto);

@@ -41,4 +41,15 @@ public class YouthCenterActivityMapper : IMapper<YouthCenterActivity, YouthCente
             Price = dto.Price
         };
     }
+
+    public YouthCenterActivity UpdateEntity(YouthCenterActivity entity, YouthCenterActivityDto updateDto)
+    {
+        entity.YouthCenterId = updateDto.YouthCenterId;
+        entity.ActivityId = updateDto.ActivityId;
+        entity.IsAvailable = updateDto.IsAvailable;
+        entity.MaxCapacity = updateDto.MaxCapacity;
+        entity.Price = updateDto.Price;
+
+        return entity;
+    }
 }

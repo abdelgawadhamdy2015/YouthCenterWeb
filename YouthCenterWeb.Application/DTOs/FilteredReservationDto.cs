@@ -3,6 +3,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
     public class FilteredReservationDto
     {
 
+        public int? PageNumber { get; set; }
+        public int? PageSize { get; set; }
+
         public DateTime? DateFrom { get; set; }
 
         public DateTime? DateTo { get; set; }
@@ -17,7 +20,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
 
         public int? UserId { get; set; }
 
-        public ReservationStatus? status { get; set; }
+        public ReservationStatus? Status { get; set; }
 
 
 

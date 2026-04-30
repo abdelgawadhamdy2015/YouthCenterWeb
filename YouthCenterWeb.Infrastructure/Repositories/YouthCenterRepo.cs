@@ -1,7 +1,7 @@
-using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Data;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
 {
@@ -9,46 +9,31 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
     {
         private readonly AppDbContext _context = context;
 
-        public Task<YouthCenter> CreateAsync(YouthCenter youthCenter)
-        {
+        // ── shared include chain ──────────────────────────────────────────────
+        private IQueryable<YouthCenter> WithRelations() =>
+            _context.YouthCenters
+                .Include(y => y.YouthCenterActivities)
+                    .ThenInclude(yca => yca.Activity);
 
+        // ── queries ───────────────────────────────────────────────────────────
+        public Task<List<YouthCenter>> GetAllAsync() =>
+            WithRelations().ToListAsync();
 
-            _context.YouthCenters.Add(youthCenter);
-            _context.SaveChanges();
-            return Task.FromResult(youthCenter);
+        public Task<YouthCenter?> GetByIdAsync(int id) =>
+            WithRelations().FirstOrDefaultAsync(y => y.Id == id);
 
-        }
+        // ── write operations — NO SaveChanges here ────────────────────────────
+        public async Task AddAsync(YouthCenter entity) =>
+            await _context.YouthCenters.AddAsync(entity);
 
-        public async Task DeleteAsync(int id)
-        {
-            var youthCenter = await _context.YouthCenters.FindAsync(id);
-            if (youthCenter != null)
-            {
-                _context.YouthCenters.Remove(youthCenter);
-                await _context.SaveChangesAsync();
-            }
-        }
+        public void Update(YouthCenter entity) =>
+            _context.YouthCenters.Update(entity);
 
-        public async Task<List<YouthCenter>> GetAllAsync()
-        {
-            var query = _context.YouthCenters.AsQueryable();
+        public void Delete(YouthCenter entity) =>
+            _context.YouthCenters.Remove(entity);
 
-
-            query = query.Include(y => y.YouthCenterActivities).ThenInclude(yca => yca.Activity);
-
-            return await query.ToListAsync();
-        }
-
-        public async Task<YouthCenter?> GetByIdAsync(int id)
-        {
-            var youthCenter = await _context.YouthCenters.Include(y => y.YouthCenterActivities).ThenInclude(yca => yca.Activity).FirstOrDefaultAsync(y => y.Id == id);
-            return youthCenter;
-        }
-
-        public async Task UpdateAsync(YouthCenter youthCenter)
-        {
-            _context.YouthCenters.Update(youthCenter);
-            await _context.SaveChangesAsync();
-        }
+        // ── single save point ─────────────────────────────────────────────────
+        public Task SaveChangesAsync() =>
+            _context.SaveChangesAsync();
     }
 }

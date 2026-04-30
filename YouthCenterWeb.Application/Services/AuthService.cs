@@ -1,43 +1,93 @@
-using YouthCenterWeb.Application.Interfaces;
 using BCrypt.Net;
-using YouthCenterWeb.Data.DTOs;
-using YouthCenterWeb.Models;
+using YouthCenterWeb.Application.Common.Constants;
+using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTO;
 using YouthCenterWeb.InterFaces;
-using YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
+using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
-    public class AuthService : IAuthService
+    public class AuthService(
+        IAuthRepo authRepo,
+        IJwtService jwtService) : IAuthService
     {
-        private readonly IAuthRepo _authRepo;
-        private readonly IJwtService _jwtService;
-
-        public AuthService(IAuthRepo authRepo, IJwtService jwtService)
+        // ── Register — public, role locked to User ────────────────────────────
+        public async Task<BaseResponse<LoginData>> RegisterAsync(RegisterDto dto)
         {
-            _authRepo = authRepo;
-            _jwtService = jwtService;
+            var existing = await authRepo.GetByEmailAsync(dto.Email);
+            if (existing != null)
+                return Fail(Messages.Auth.EmailExistsEn, Messages.Auth.EmailExistsAr);
+
+            var user = new User
+            {
+                Email = dto.Email,
+                Name = dto.Name,
+                Mobile = dto.Mobile,
+                Role = UserRole.User,          // always User — never from dto
+                YouthCenterId = null,                   // users have no center
+                HashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+            };
+
+            await authRepo.AddAsync(user);
+            await authRepo.SaveChangesAsync();
+
+            return Success(user);
         }
 
+        // ── Login — all roles ─────────────────────────────────────────────────
         public async Task<BaseResponse<LoginData>> LoginAsync(LoginDto dto)
         {
-            var user = await _authRepo.GetByEmailAsync(dto.Email);
+            var user = await authRepo.GetByEmailAsync(dto.Email);
 
-            if (user == null)
+            // same message for both cases — don't tell attacker which one failed
+            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.HashedPassword))
+                return Fail("Invalid email or password.", "البريد أو كلمة المرور غير صحيحة");
+
+            return Success(user);
+        }
+
+        // ── Create Admin — SuperAdmin only (enforced in controller) ───────────
+        public async Task<BaseResponse<LoginData>> CreateAdminAsync(CreateAdminDto dto)
+        {
+            var existing = await authRepo.GetByEmailAsync(dto.Email);
+            if (existing != null)
+                return Fail("Email already exists.", "البريد مستخدم بالفعل");
+
+            // YouthCenterId required for admin — validate here
+            if (dto.YouthCenterId == null)
+                return Fail("YouthCenterId is required for Admin.", "يجب تحديد مركز الشباب");
+
+            var user = new User
             {
-                return Fail("Invalid email", "البريد الإلكتروني غير صحيح");
-            }
+                Email = dto.Email,
+                Name = dto.Name,
+                Mobile = dto.Mobile,
+                Role = UserRole.Admin,         // always Admin — never from dto
+                YouthCenterId = dto.YouthCenterId,      // set by SuperAdmin only
+                HashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+            };
 
-            var valid = BCrypt.Net.BCrypt.Verify(dto.Password, user.HashedPassword);
+            await authRepo.AddAsync(user);
+            await authRepo.SaveChangesAsync();
 
-            if (!valid)
-            {
-                return Fail("Invalid password", "كلمة المرور غير صحيحة");
-            }
-
-
-
+            // no token returned — SuperAdmin creates admin, admin logs in separately
             return new BaseResponse<LoginData>
+            {
+                Result = 1,
+                Data = null,
+                Alert = new Alert
+                {
+                    MessageEn = Messages.Data.CreatedEn,  // ← fixed: En in En field
+                    MessageAr = Messages.Data.CreatedAr   // ← fixed: Ar in Ar field
+                }
+            };
+        }
+
+        // ── shared helpers ────────────────────────────────────────────────────
+        private BaseResponse<LoginData> Success(User user) =>
+            new()
             {
                 Result = 1,
                 Data = new LoginData
@@ -45,61 +95,26 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     Email = user.Email,
                     Name = user.Name,
                     Phone = user.Mobile ?? "",
-                    RoleId = user.RoleId,
-                    Token = _jwtService.GenerateToken(user)
+                    Role = user.Role,
+                    Token = jwtService.GenerateToken(user)
                 },
                 Alert = new Alert
                 {
-                    MessageEn = "Login successful",
-                    MessageAr = "تم تسجيل الدخول بنجاح"
+                    MessageEn = "Success",
+                    MessageAr = "تمت العملية بنجاح"
                 }
             };
-        }
 
-        public async Task<BaseResponse<LoginData>> RegisterAsync(CreateUserDto dto)
-        {
-            var existing = await _authRepo.GetByEmailAsync(dto.Email);
-
-            if (existing != null)
-            {
-                return Fail("Email exists", "البريد مستخدم بالفعل");
-            }
-
-            var user = new User
-            {
-                Email = dto.Email,
-                Name = dto.Name,
-                Mobile = dto.Mobile,
-                YouthCenterId = dto.YouthCenterId,
-                RoleId = dto.RoleId,
-                HashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Password)
-            };
-
-            await _authRepo.AddAsync(user);
-            await _authRepo.SaveChangesAsync();
-
-            return new BaseResponse<LoginData>
-            {
-                Result = 1,
-                Alert = new Alert
-                {
-                    MessageEn = "User registered successfully",
-                    MessageAr = "تم تسجيل المستخدم بنجاح"
-                }
-            };
-        }
-
-        private BaseResponse<LoginData> Fail(string en, string ar)
-        {
-            return new BaseResponse<LoginData>
+        private static BaseResponse<LoginData> Fail(string en, string ar) =>
+            new()
             {
                 Result = 0,
+                Data = null,
                 Alert = new Alert
                 {
                     MessageEn = en,
                     MessageAr = ar
                 }
             };
-        }
     }
 }

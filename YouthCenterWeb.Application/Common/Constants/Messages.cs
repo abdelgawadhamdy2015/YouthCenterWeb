@@ -30,6 +30,26 @@ namespace YouthCenterWeb.Application.Common.Constants
 
             public const string CreationFailedEn = "Creation Failed";
             public const string CreationFailedAr = "فشل الإنشاء";
+
+            public static string UpdatedAr => "تم التحديث بنجاح";
+            public static string UpdatedEn => "Updated Successfully";
+
+            public static string DeletedAr => "تم الحذف بنجاح";
+            public static string DeletedEn => "Deleted Successfully";
+
+            public static string DeletionFailedAr => "فشل الحذف";
+            public static string DeletionFailedEn => "Deletion Failed";
+
+
+        }
+
+        public static class Validation
+        {
+            public static string RequiredFieldAr(string field) => $"حقل {field} مطلوب.";
+            public static string RequiredFieldEn(string field) => $"{field} is required.";
+
+            public static string EmailRequiredAr => "البريد الإلكتروني مطلوب.";
+            public static string EmailRequiredEn => "Email is required.";
         }
     }
 }

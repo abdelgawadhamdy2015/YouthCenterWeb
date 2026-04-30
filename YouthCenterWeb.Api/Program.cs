@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using YouthCenterWeb.Models;
-using YouthCenterWeb.YouthCenterWeb.Application.Mapper;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -91,15 +93,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 });
 #endregion
 
+#region  🔹 Policy
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(Policies.RequireAuthenticated, policy =>
+        policy.RequireAuthenticatedUser());
 
-// #region 🔹 Services
-// builder.Services.AddScoped<IJwtService, JwtService>();
-// builder.Services.AddScoped<IAuthService, AuthService>();
-// builder.Services.AddScoped<IAuthRepo, AuthRepo>();
+    options.AddPolicy(Policies.RequireAdmin, policy =>
+        policy.RequireClaim(ClaimTypes.Role, UserRole.Admin.ToString(), UserRole.SuperAdmin.ToString()));
 
-// builder.Services.AddScoped<IReservationService, ReservationService>();
+    options.AddPolicy(Policies.RequireSuperAdmin, policy =>
+        policy.RequireClaim(ClaimTypes.Role, UserRole.SuperAdmin.ToString()));
 
-// #endregion
+});
+
+#endregion
 
 var app = builder.Build();
 

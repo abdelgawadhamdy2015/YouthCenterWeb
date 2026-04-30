@@ -5,4 +5,5 @@ public interface IMapper<TEntity, TDto, TCreateDto>
 
     TEntity CreateEntity(TCreateDto createDto);
 
+    TEntity UpdateEntity(TEntity entity, TDto updateDto);
 }

@@ -31,5 +31,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
                 Name = dto.Name
             };
         }
+
+        public Activity UpdateEntity(Activity entity, ActivityDto updateDto)
+        {
+            entity.Name = updateDto.Name;
+            return entity;
+        }
     }
 }

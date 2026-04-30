@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
@@ -14,14 +15,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
         public async Task<List<TDto>> GetAllAsync(params Expression<Func<TEntity, object>>[] includes)
         {
-            // نمرر الـ includes للمستودع
+
             var entities = await _repo.GetAllAsync(includes);
             return entities.Select(_mapper.ToDto).ToList();
         }
 
         public async Task<TDto?> GetByIdAsync(int id, params Expression<Func<TEntity, object>>[] includes)
         {
-            // نمرر الـ includes للمستودع
             var entity = await _repo.GetByIdAsync(id, includes);
             return entity == null ? default : _mapper.ToDto(entity);
         }
@@ -39,6 +39,17 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             bool deleted = await _repo.DeleteAsync(id);
             if (deleted) await _repo.SaveChangesAsync();
             return deleted;
+        }
+
+        public async Task<TDto> UpdateAsync(int id, TDto dto)
+        {
+            var entity = await _repo.GetByIdAsync(id);
+            if (entity == null) throw new NotFoundException(typeof(TEntity).Name, id);
+
+            entity = _mapper.UpdateEntity(entity, dto);
+            var result = await _repo.UpdateAsync(entity);
+            await _repo.SaveChangesAsync();
+            return _mapper.ToDto(result);
         }
 
     }

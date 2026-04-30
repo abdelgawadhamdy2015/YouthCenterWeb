@@ -32,11 +32,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure
             services.AddHttpContextAccessor();
 
             // Mapper 
-            services.AddScoped<IMapper<Role, RoleDto, RoleDto>, RoleMapper>();
             services.AddScoped<IMapper<Activity, ActivityDto, CreateActivityDto>, ActivityMapper>();
             services.AddScoped<IMapper<Reservation, ReservationDto, CreateReservationDto>, ReservationMapper>();
-            services.AddScoped<IMapper<Role, RoleDto, RoleDto>, RoleMapper>();
-            services.AddScoped<IMapper<User, UserDto, CreateUserDto>, UserMapper>();
+            services.AddScoped<IMapper<User, UserDto, RegisterDto>, UserMapper>();
             services.AddScoped<IMapper<YouthCenter, YouthCenterDto, CreateYouthCenterDto>, YouthCenterMapper>();
             services.AddScoped<IMapper<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>, YouthCenterActivityMapper>();
             // Repositories
@@ -51,11 +49,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IReservationService, ReservationService>();
             services.AddScoped<IUserService, UserService>();
-            services.AddCrud<Role, RoleDto, RoleDto>();
             services.AddCrud<Activity, ActivityDto, CreateActivityDto>();
             services.AddCrud<YouthCenter, YouthCenterDto, CreateYouthCenterDto>();
             services.AddCrud<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>();
             services.AddScoped<IYouthCenterService, YouthCenterService>();
+
 
             return services;
         }

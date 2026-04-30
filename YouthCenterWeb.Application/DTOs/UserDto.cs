@@ -1,3 +1,5 @@
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+
 namespace YouthCenterWeb.DTOs
 {
     public class UserDto
@@ -14,7 +16,7 @@ namespace YouthCenterWeb.DTOs
 
         public int YouthCenterId { get; set; }
 
-        public int RoleId { get; set; }
+        public UserRole Role { get; set; }
 
         public int ReservationCount { get; set; }
     }

@@ -14,7 +14,6 @@ namespace YouthCenterWeb.Data
         public DbSet<YouthCenterActivity> YouthCenterActivities { get; set; }
 
         public DbSet<Activity> Activities { get; set; }
-        public DbSet<Role> Roles { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -29,7 +28,8 @@ namespace YouthCenterWeb.Data
                 .HasOne(u => u.YouthCenter).WithMany()
                 .HasForeignKey(u => u.YouthCenterId)
                 .OnDelete(DeleteBehavior.Restrict);
-            // 2. Configure Reservation -> User
+
+            // 3. Configure Reservation -> User
             modelBuilder.Entity<Reservation>()
                 .HasOne(r => r.User)
                 .WithMany(u => u.Reservations)
@@ -42,7 +42,6 @@ namespace YouthCenterWeb.Data
                 .WithMany(y => y.Reservations)
                 .HasForeignKey(r => r.YouthCenterActivityId)
                 .OnDelete(DeleteBehavior.Restrict); // Change to Restrict
-
 
 
             // 4. Configure YouthCenterActivity -> YouthCenter

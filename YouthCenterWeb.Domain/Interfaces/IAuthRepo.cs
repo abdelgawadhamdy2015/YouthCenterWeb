@@ -1,3 +1,4 @@
+using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
 
 public interface IAuthRepo

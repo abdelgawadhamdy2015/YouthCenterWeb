@@ -1,22 +1,14 @@
-using YouthCenterWeb.Models;
+// Application/Interfaces/IReservationRepo.cs
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
-namespace YouthCenterWeb.Application.Interfaces;
-
 public interface IReservationRepo
 {
-    Task<List<Reservation>> GetAllWithRelationsAsync();
+    Task<List<Reservation>> GetFiltersReservationsAsync(FilteredReservationDto? dto);
     Task<Reservation?> GetByIdWithRelationsAsync(int id);
-    Task<List<Reservation>> GetUserReservationsAsync(int userId);
     Task<YouthCenterActivity?> GetYouthCenterActivity(int youthCenterActivityId);
-    Task<List<Reservation>> GetYouthCenterReservationsAsync(int youthCenterId);
-    Task<List<Reservation>> GetReservationsByStatusAsync(ReservationStatus reservationStatus);
-    Task<List<Reservation>> GetFiltersReservationsAsync(
-        FilteredReservationDto dto
-    );
-
     Task AddAsync(Reservation entity);
-    Task<bool> DeleteAsync(int id);
+    void Delete(Reservation entity);    // sync — EF tracks it
+    void Update(Reservation entity);    // sync — EF tracks it
     Task SaveChangesAsync();
 }

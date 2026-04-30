@@ -1,11 +1,15 @@
-using System.Linq.Expressions;
+// Domain/Interfaces/IYouthCenterRepo.cs
 using YouthCenterWeb.Models;
 
-public interface IYouthCenterRepo
+namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
 {
-    Task<YouthCenter?> GetByIdAsync(int id);
-    Task<List<YouthCenter>> GetAllAsync();
-    Task<YouthCenter> CreateAsync(YouthCenter youthCenter);
-    Task UpdateAsync(YouthCenter youthCenter);
-    Task DeleteAsync(int id);
+    public interface IYouthCenterRepo
+    {
+        Task<List<YouthCenter>> GetAllAsync();
+        Task<YouthCenter?> GetByIdAsync(int id);
+        Task AddAsync(YouthCenter entity);
+        void Update(YouthCenter entity);
+        void Delete(YouthCenter entity);
+        Task SaveChangesAsync();
+    }
 }

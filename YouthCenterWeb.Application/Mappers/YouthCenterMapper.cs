@@ -11,8 +11,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             return new YouthCenter
             {
                 Name = createDto.Name,
-                Location = createDto.Location,
-                Mobile = createDto.Mobile,
+                Address = createDto.Address,
+                Phone = createDto.Phone,
                 Description = createDto.Description,
                 IsActive = createDto.IsActive
             };
@@ -24,8 +24,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             {
                 Id = entity.Id,
                 Name = entity.Name,
-                Location = entity.Location,
-                Mobile = entity.Mobile,
+                Address = entity.Address,
+                Phone = entity.Phone,
                 IsActive = entity.IsActive,
                 Description = entity.Description,
                 ActivitiesIds = entity.YouthCenterActivities.Select(a => a.ActivityId).ToList(),
@@ -39,12 +39,21 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             {
                 Id = dto.Id,
                 Name = dto.Name,
-                Location = dto.Location,
-                Mobile = dto.Mobile,
+                Address = dto.Address,
+                Phone = dto.Phone,
                 Description = dto.Description,
                 IsActive = dto.IsActive
             };
         }
 
+        public YouthCenter UpdateEntity(YouthCenter entity, YouthCenterDto updateDto)
+        {
+            entity.Name = updateDto.Name;
+            entity.Address = updateDto.Address;
+            entity.Phone = updateDto.Phone;
+            entity.Description = updateDto.Description;
+            entity.IsActive = updateDto.IsActive;
+            return entity;
+        }
     }
 }

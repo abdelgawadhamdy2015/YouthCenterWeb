@@ -16,11 +16,11 @@ namespace YouthCenterWeb.Data.DTOs
         [Required]
         public TimeOnly EndTime { get; set; }
 
-        [Required]
-        public int UserId { get; set; }
 
         [Required]
         public int YouthCenterActivityId { get; set; }
+
+        public int? UserId { get; set; }
 
         public decimal? TotalPrice { get; set; }
 

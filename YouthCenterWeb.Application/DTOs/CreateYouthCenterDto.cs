@@ -10,14 +10,20 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public string Mobile { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
 
-        public string? Location { get; set; }
+        [Required]
+        public string? Address { get; set; }
 
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
 
         public string? Description { get; set; }
+
         [JsonIgnore]
         public List<YouthCenterActivity>? YouthCenterActivities { get; set; }
+
         public bool IsActive { get; set; } = true;
     }
 }

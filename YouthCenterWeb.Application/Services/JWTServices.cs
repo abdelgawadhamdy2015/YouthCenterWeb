@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using YouthCenterWeb.InterFaces;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 namespace YouthCenterWeb.Services;
 
 public class JwtService(IConfiguration config) : IJwtService
@@ -15,9 +16,10 @@ public class JwtService(IConfiguration config) : IJwtService
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()?? string.Empty),
-                        new(ClaimTypes.Role, user.RoleId.ToString()?? string.Empty),
+                        new(ClaimTypes.Role, user.Role.ToString() ?? string.Empty),
 
             new(ClaimTypes.Email, user.Email?? string.Empty),
+            new(ClaimsConstants.YouthCenterId, user.YouthCenterId?.ToString() ?? "")
 
         };
 

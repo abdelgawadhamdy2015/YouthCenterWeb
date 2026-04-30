@@ -1,87 +1,123 @@
+
 using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
-using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
-using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
-    public class ReservationService(IReservationRepo repo, IMapper<Reservation, ReservationDto, CreateReservationDto> mapper, IUserService userService)
-    : IReservationService
+    public class ReservationService(
+        IReservationRepo repo,
+        IMapper<Reservation, ReservationDto, CreateReservationDto> mapper)
+        : IReservationService
     {
-        private readonly IReservationRepo _repo = repo;
-        private readonly IMapper<Reservation, ReservationDto, CreateReservationDto> _mapper = mapper;
-        private readonly IUserService _userService = userService;
-
-        public async Task<List<ReservationDto>> GetAllAsync()
+        // Controller builds the filter — service just executes it
+        public async Task<List<ReservationDto>> GetReservationsAsync(FilteredReservationDto? filter)
         {
-
-            var data = await _repo.GetAllWithRelationsAsync();
-
-            return data
-                .Select(_mapper.ToDto)
-                .ToList();
+            var reservations = await repo.GetFiltersReservationsAsync(filter);
+            return reservations.Select(mapper.ToDto).ToList();
         }
 
-        public async Task<List<ReservationDto>> GetUserReservationsAsync(int? userId)
-        {
-            var roles = _userService.RoleId;
-            if (roles == 1 || userId == null)
-            {
-                userId = _userService.UserId;
-            }
-
-            var reservations = await _repo.GetUserReservationsAsync(userId ?? 0);
-
-            return reservations
-                .Select(_mapper.ToDto)
-                .ToList();
-        }
-        public async Task<List<ReservationDto>> GetYouthCenterReservationsAsync(int youthCenterId)
-        {
-            var reservations = await _repo.GetYouthCenterReservationsAsync(youthCenterId);
-            return reservations.Select(_mapper.ToDto).ToList();
-        }
-        public async Task<List<ReservationDto>> GetReservationsByStatusAsync(ReservationStatus reservationStatus)
-        {
-            var reservations = await _repo.GetReservationsByStatusAsync(reservationStatus);
-
-            return reservations.Select(_mapper.ToDto).ToList();
-        }
         public async Task<ReservationDto?> GetByIdAsync(int id)
         {
-            var entity = await _repo.GetByIdWithRelationsAsync(id);
-
-            return entity == null ? null : _mapper.ToDto(entity);
+            var entity = await repo.GetByIdWithRelationsAsync(id);
+            return entity == null ? null : mapper.ToDto(entity);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<ReservationDto?> CreateReservationAsync(
+            CreateReservationDto dto, int userId, UserRole role, int? adminCenterId)
         {
-            var result = await _repo.DeleteAsync(id);
-            if (!result) return false;
+            var activity = await repo.GetYouthCenterActivity(dto.YouthCenterActivityId)
+                ?? throw new NotFoundException("Activity not found");
 
-            await _repo.SaveChangesAsync();
-            return true;
+            if (role == UserRole.Admin && activity.YouthCenterId != adminCenterId)
+                throw new ForbiddenException("Activity does not belong to your center");
+
+            if (role == UserRole.User)
+                dto.UserId = userId;
+
+            var entity = mapper.CreateEntity(dto);
+            entity.TotalPrice = activity.Price * entity.DurationHours ?? 0;
+
+            await repo.AddAsync(entity);
+            await repo.SaveChangesAsync();
+            return mapper.ToDto(entity);
         }
 
-
-
-        public async Task<ReservationDto> CreateAsync(CreateReservationDto dto)
+        // ReservationService.cs
+        public async Task DeleteAsync(int id, int userId, UserRole role, int? adminCenterId)
         {
-            var activity = await _repo.GetYouthCenterActivity(dto.YouthCenterActivityId);
+            var reservation = await repo.GetByIdWithRelationsAsync(id)
+                ?? throw new NotFoundException("Reservation", id);
 
-            var entity = _mapper.CreateEntity(dto);
-            entity.TotalPrice = activity != null ? (activity.Price * entity.DurationHours) : 0;
-            await _repo.AddAsync(entity);
-            await _repo.SaveChangesAsync();
-            return _mapper.ToDto(entity);
+            if (role == UserRole.User)
+            {
+                if (reservation.UserId != userId)
+                    throw new ForbiddenException();
+
+                var canDelete = reservation.Status is
+                    ReservationStatus.Pending or ReservationStatus.Completed;
+
+                if (!canDelete)
+                    throw new BusinessException("You can only delete Pending or Completed reservations.");
+            }
+            else if (role == UserRole.Admin)
+            {
+                if (reservation.YouthCenterActivity?.YouthCenterId != adminCenterId)
+                    throw new ForbiddenException();
+
+                if (reservation.Status != ReservationStatus.Completed)
+                    throw new BusinessException("Admin can only delete Completed reservations.");
+            }
+
+            repo.Delete(reservation);   // ← entity passed directly, no second DB call
+            await repo.SaveChangesAsync();
         }
 
-        public async Task<List<ReservationDto>> GetFiltersReservationsAsync(FilteredReservationDto dto)
+        public async Task AcceptAsync(int id, int reviewedBy, int? adminCenterId, UserRole role)
         {
-            var reservations = await _repo.GetFiltersReservationsAsync(dto);
-            return reservations.Select(_mapper.ToDto).ToList();
+            var reservation = await repo.GetByIdWithRelationsAsync(id)
+                ?? throw new NotFoundException("Reservation", id);
+
+            if (role == UserRole.Admin &&
+                reservation.YouthCenterActivity?.YouthCenterId != adminCenterId)
+                throw new ForbiddenException();
+
+            if (reservation.Status != ReservationStatus.Pending)
+                throw new BusinessException("Only Pending reservations can be accepted.");
+
+            reservation.Status = ReservationStatus.Confirmed;
+            reservation.ReviewedBy = reviewedBy;
+            reservation.ReviewedAt = DateTime.UtcNow;
+
+            repo.Update(reservation);   // ← tell EF the entity changed
+            await repo.SaveChangesAsync();
         }
+
+        public async Task RejectAsync(int id, string reason, int reviewedBy, int? adminCenterId, UserRole role)
+        {
+            var reservation = await repo.GetByIdWithRelationsAsync(id)
+                ?? throw new NotFoundException("Reservation", id);
+
+            if (role == UserRole.Admin &&
+                reservation.YouthCenterActivity?.YouthCenterId != adminCenterId)
+                throw new ForbiddenException();
+
+            if (reservation.Status != ReservationStatus.Pending)
+                throw new BusinessException("Only Pending reservations can be rejected.");
+
+            reservation.Status = ReservationStatus.Cancelled;
+            reservation.RejectionReason = reason;
+            reservation.ReviewedBy = reviewedBy;
+            reservation.ReviewedAt = DateTime.UtcNow;
+
+            repo.Update(reservation);
+            await repo.SaveChangesAsync();
+        }
+
+
     }
 }

@@ -12,11 +12,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public int ActivityId { get; set; }
         public Activity Activity { get; set; } = null!;
 
-        public decimal Price { get; set; }
+        public decimal? Price { get; set; } = 0;
 
-        public int MaxCapacity { get; set; }
+        public int? MaxCapacity { get; set; }
 
-        public bool IsAvailable { get; set; } = true;
+        public bool? IsAvailable { get; set; } = true;
 
         // Navigation
         public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();

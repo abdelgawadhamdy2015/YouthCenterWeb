@@ -1,9 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
-using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
+using YouthCenterWeb.Models;
 
-namespace YouthCenterWeb.Models
+namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 {
     public class Reservation
     {
@@ -40,6 +40,12 @@ namespace YouthCenterWeb.Models
 
         [ForeignKey("YouthCenterActivityId")]
         public YouthCenterActivity? YouthCenterActivity { get; set; }
+
+        public string? RejectionReason { get; set; }
+
+        public int? ReviewedBy { get; set; }
+
+        public DateTime? ReviewedAt { get; set; }
 
         // 🧠 مدة الحجز (مش متخزنة)
         [NotMapped]

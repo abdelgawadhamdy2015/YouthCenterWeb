@@ -8,75 +8,41 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
 {
     public class UserRepo(AppDbContext context) : IUserRepo
     {
-
         private readonly AppDbContext _context = context;
-        public Task<User> AddAsync(User entity)
-        {
-            _context.Users.Add(entity);
-            _context.SaveChanges();
-            return Task.FromResult(entity);
-        }
 
-        public Task<bool> DeleteAsync(int id)
-        {
-            var entity = _context.Users.Find(id);
-            if (entity == null)
-            {
-                return Task.FromResult(false);
-            }
-
-            _context.Users.Remove(entity);
-            _context.SaveChanges();
-            return Task.FromResult(true);
-        }
-
-        public Task<List<User>> GetAllAsync(params Expression<Func<User, object>>[] includes)
+        private IQueryable<User> WithIncludes(
+            params Expression<Func<User, object>>[] includes)
         {
             IQueryable<User> query = _context.Users;
-
             foreach (var include in includes)
-            {
                 query = query.Include(include);
-            }
-
-            return query.ToListAsync();
+            return query;
         }
 
-        public Task<User?> GetByEmailAsync(string email, params Expression<Func<User, object>>[] includes)
-        {
-            IQueryable<User> query = _context.Users.Where(u => u.Email == email);
+        public Task<List<User>> GetAllAsync(
+            params Expression<Func<User, object>>[] includes) =>
+            WithIncludes(includes).ToListAsync();
 
-            foreach (var include in includes)
-            {
-                query = query.Include(include);
-            }
+        public Task<User?> GetByIdAsync(
+            int id,
+            params Expression<Func<User, object>>[] includes) =>
+            WithIncludes(includes).FirstOrDefaultAsync(u => u.Id == id);
 
-            return query.FirstOrDefaultAsync();
-        }
+        public Task<User?> GetByEmailAsync(
+            string email,
+            params Expression<Func<User, object>>[] includes) =>
+            WithIncludes(includes).FirstOrDefaultAsync(u => u.Email == email);
 
+        public async Task AddAsync(User entity) =>
+            await _context.Users.AddAsync(entity);
 
-        public Task<User?> GetByIdAsync(int? id, params Expression<Func<User, object>>[] includes)
-        {
-            IQueryable<User> query = _context.Users.Where(u => u.Id == id);
-
-            foreach (var include in includes)
-            {
-                query = query.Include(include);
-            }
-
-            return query.FirstOrDefaultAsync();
-        }
-
-        public Task SaveChangesAsync()
-        {
-            return _context.SaveChangesAsync();
-        }
-
-        public Task<User> UpdateAsync(User entity)
-        {
+        public void Update(User entity) =>
             _context.Users.Update(entity);
-            _context.SaveChanges();
-            return Task.FromResult(entity);
-        }
+
+        public void Delete(User entity) =>
+            _context.Users.Remove(entity);
+
+        public Task SaveChangesAsync() =>
+            _context.SaveChangesAsync();
     }
 }

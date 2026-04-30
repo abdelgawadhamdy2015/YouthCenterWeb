@@ -9,10 +9,13 @@ namespace YouthCenterWeb.Data.DTOs
 
         public string Name { get; set; } = string.Empty;
 
-        public string Mobile { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
 
-        public string? Location { get; set; }
+        public string? Address { get; set; }
 
+        public string? City { get; set; }
+
+        public string Email { get; set; } = string.Empty;
 
         public string? Description { get; set; }
 

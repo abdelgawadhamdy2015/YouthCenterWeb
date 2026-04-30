@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.Models
 {
@@ -24,11 +26,10 @@ namespace YouthCenterWeb.Models
         // 🔗 Navigation
         public YouthCenter? YouthCenter { get; set; }
 
-        // 🔗 Foreign Key → Role
-        public int RoleId { get; set; }
+
 
         // 🔗 Navigation
-        public Role? Role { get; set; }
+        public UserRole Role { get; set; } = UserRole.User;
 
         // 🔗 Reservations
         [JsonIgnore] // ❗ لتقليل حجم الـ JSON

@@ -1,7 +1,6 @@
-
-using YouthCenterWeb.Models;
 using YouthCenterWeb.DTOs;
 using YouthCenterWeb.Data.DTOs;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
 {
@@ -14,7 +13,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 Date = createDto.Date,
                 StartTime = createDto.StartTime,
                 EndTime = createDto.EndTime,
-                UserId = createDto.UserId,
+                UserId = createDto.UserId ?? 0,
                 YouthCenterActivityId = createDto.YouthCenterActivityId,
                 Status = ReservationStatus.Pending,
 
@@ -56,6 +55,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             };
         }
 
-
+        public Reservation UpdateEntity(Reservation entity, ReservationDto updateDto)
+        {
+            entity.Date = updateDto.Date;
+            entity.StartTime = updateDto.StartTime;
+            entity.EndTime = updateDto.EndTime;
+            entity.UserId = updateDto.UserId;
+            entity.YouthCenterActivityId = updateDto.YouthCenterActivityId;
+            entity.Status = updateDto.Status;
+            return entity;
+        }
     }
 }
