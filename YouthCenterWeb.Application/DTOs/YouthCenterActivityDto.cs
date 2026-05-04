@@ -6,6 +6,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
     {
         public int Id { get; set; }
         public string ActivityName { get; set; } = string.Empty;
+        public string YouthCenterName { get; set; } = string.Empty;
 
         [Required]
         public int YouthCenterId { get; set; }

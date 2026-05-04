@@ -5,7 +5,10 @@ namespace YouthCenterWeb.Data.DTOs
     public class CreateActivityDto
     {
         [Required]
-        public string Name { get; set; } = string.Empty;
+        public string NameAr { get; set; } = string.Empty;
+
+        [Required]
+        public string NameEn { get; set; } = string.Empty;
 
         public string? Description { get; set; } = string.Empty;
     }

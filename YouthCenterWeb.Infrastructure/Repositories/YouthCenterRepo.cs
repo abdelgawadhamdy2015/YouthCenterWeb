@@ -9,20 +9,19 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
     {
         private readonly AppDbContext _context = context;
 
-        // ── shared include chain ──────────────────────────────────────────────
+        // ── shared include  
         private IQueryable<YouthCenter> WithRelations() =>
             _context.YouthCenters
                 .Include(y => y.YouthCenterActivities)
                     .ThenInclude(yca => yca.Activity);
 
-        // ── queries ───────────────────────────────────────────────────────────
+        // ── queries 
         public Task<List<YouthCenter>> GetAllAsync() =>
             WithRelations().ToListAsync();
 
         public Task<YouthCenter?> GetByIdAsync(int id) =>
             WithRelations().FirstOrDefaultAsync(y => y.Id == id);
 
-        // ── write operations — NO SaveChanges here ────────────────────────────
         public async Task AddAsync(YouthCenter entity) =>
             await _context.YouthCenters.AddAsync(entity);
 
@@ -32,7 +31,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
         public void Delete(YouthCenter entity) =>
             _context.YouthCenters.Remove(entity);
 
-        // ── single save point ─────────────────────────────────────────────────
         public Task SaveChangesAsync() =>
             _context.SaveChangesAsync();
     }

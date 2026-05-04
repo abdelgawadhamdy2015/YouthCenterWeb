@@ -127,7 +127,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         }
 
         // ── GET api/user/profile ──────────────────────────────────────────────
-        // Every user gets their own profile — id comes from JWT
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
         {
@@ -146,15 +145,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
             });
         }
 
-        // ── GET api/user/{id} ─────────────────────────────────────────────────
-        // SuperAdmin → any id
-        // Admin/User → redirected to own profile, id param ignored
+        // ── GET api/user/{id} 
+
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
             var role = User.GetRole();
 
-            // non-SuperAdmin can only see themselves
             var targetId = role == UserRole.SuperAdmin
                 ? id
                 : User.GetUserId();

@@ -43,6 +43,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure
             services.AddScoped(typeof(IGenericRepo<>), typeof(GenericRepo<>));
             services.AddScoped<IUserRepo, UserRepo>();
             services.AddScoped<IYouthCenterRepo, YouthCenterRepo>();
+            services.AddScoped<IYouthCenterActivityRepo, YouthCenterActivityRepo>();
 
             // services
             services.AddScoped<IJwtService, JwtService>();
@@ -53,6 +54,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure
             services.AddCrud<YouthCenter, YouthCenterDto, CreateYouthCenterDto>();
             services.AddCrud<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>();
             services.AddScoped<IYouthCenterService, YouthCenterService>();
+            services.AddScoped<IYouthCenterActivityService, YouthCenterActivityService>();
 
 
             return services;

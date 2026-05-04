@@ -58,7 +58,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
             if (role == UserRole.User)
             {
                 dto.UserId = User.GetUserId();   // user only sees their own
-                dto.YouthCenterId = null;               // strip center filter
+                                                 // dto.YouthCenterId = null;               // strip center filter
             }
             else if (role == UserRole.Admin)
             {

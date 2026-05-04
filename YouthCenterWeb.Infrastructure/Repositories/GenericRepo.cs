@@ -16,8 +16,7 @@ public class GenericRepo<T> : IGenericRepo<T> where T : class
         _dbSet = _context.Set<T>();
     }
 
-    // جلب الكل مع إمكانية إضافة Include
-    public async Task<List<T>> GetAllAsync(params Expression<Func<T, object>>[] includes)
+    public async Task<List<T>?> GetAllAsync(params Expression<Func<T, object>>[] includes)
     {
         IQueryable<T> query = _dbSet;
 
@@ -29,7 +28,6 @@ public class GenericRepo<T> : IGenericRepo<T> where T : class
         return await query.AsNoTracking().ToListAsync();
     }
 
-    // جلب عنصر واحد عن طريق ID مع Include
     public async Task<T?> GetByIdAsync(int? id, params Expression<Func<T, object>>[] includes)
     {
         IQueryable<T> query = _dbSet;
@@ -39,29 +37,23 @@ public class GenericRepo<T> : IGenericRepo<T> where T : class
             query = query.Include(include);
         }
 
-        // ملاحظة: نفترض أن اسم حقل المفتاح هو "Id" في جميع الجداول
         return await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
     }
 
-    public async Task<T> AddAsync(T entity)
+    public async Task AddAsync(T entity)
     {
         await _dbSet.AddAsync(entity);
-        return entity;
     }
 
-    public async Task<T> UpdateAsync(T entity)
+    public async Task UpdateAsync(T entity)
     {
         _dbSet.Update(entity);
-        return entity;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task DeleteAsync(T entity)
     {
-        var entity = await _dbSet.FindAsync(id);
-        if (entity == null) return false;
-
         _dbSet.Remove(entity);
-        return true;
+
     }
 
     public async Task SaveChangesAsync()

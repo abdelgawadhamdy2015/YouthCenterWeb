@@ -24,11 +24,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
         public async Task<UserDto?> GetByIdAsync(int id)
         {
-            // no role check here — controller decides which id to pass
             var user = await userRepository.GetByIdAsync(
                 id,
-                u => u.Reservations,
-                u => u.Role!);
+                u => u.Reservations
+                );
 
             return user != null ? userMapper.ToDto(user) : null;
         }

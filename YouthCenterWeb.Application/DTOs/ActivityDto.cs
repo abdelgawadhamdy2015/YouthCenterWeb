@@ -4,7 +4,8 @@ namespace YouthCenterWeb.Data.DTOs
     {
         public int Id { get; set; }
 
-        public string Name { get; set; } = string.Empty;
+        public string NameAr { get; set; } = string.Empty;
+        public string NameEn { get; set; } = string.Empty;
 
         public int YouthCenterId { get; set; }
     }

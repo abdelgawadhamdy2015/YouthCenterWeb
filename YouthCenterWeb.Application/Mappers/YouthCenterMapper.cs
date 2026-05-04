@@ -29,7 +29,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 IsActive = entity.IsActive,
                 Description = entity.Description,
                 ActivitiesIds = entity.YouthCenterActivities.Select(a => a.ActivityId).ToList(),
-                ActivitiesNames = entity.YouthCenterActivities.Select(a => a.Activity?.Name ?? "").ToList(),
+                ActivitiesNames = entity.YouthCenterActivities.Select(a => a.Activity?.NameAr ?? "").ToList(),
             };
         }
 

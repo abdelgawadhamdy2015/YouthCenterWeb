@@ -10,7 +10,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
         {
             return new Activity
             {
-                Name = createDto.Name
+                NameAr = createDto.NameAr,
+                NameEn = createDto.NameEn
+
             };
         }
 
@@ -19,7 +21,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
             return new ActivityDto
             {
                 Id = entity.Id,
-                Name = entity.Name
+                NameAr = entity.NameAr,
+                NameEn = entity.NameEn
+
             };
         }
 
@@ -28,13 +32,16 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
             return new Activity
             {
                 Id = dto.Id,
-                Name = dto.Name
+                NameAr = dto.NameAr,
+                NameEn = dto.NameEn
+
             };
         }
 
         public Activity UpdateEntity(Activity entity, ActivityDto updateDto)
         {
-            entity.Name = updateDto.Name;
+            entity.NameAr = updateDto.NameAr;
+            entity.NameEn = updateDto.NameEn;
             return entity;
         }
     }
