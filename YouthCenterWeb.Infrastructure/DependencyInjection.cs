@@ -44,17 +44,18 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure
             services.AddScoped<IUserRepo, UserRepo>();
             services.AddScoped<IYouthCenterRepo, YouthCenterRepo>();
             services.AddScoped<IYouthCenterActivityRepo, YouthCenterActivityRepo>();
-
+            services.AddScoped<IActivityRepo, ActivityRepo>();
             // services
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IReservationService, ReservationService>();
             services.AddScoped<IUserService, UserService>();
-            services.AddCrud<Activity, ActivityDto, CreateActivityDto>();
-            services.AddCrud<YouthCenter, YouthCenterDto, CreateYouthCenterDto>();
-            services.AddCrud<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>();
+            //services.AddCrud<Activity, ActivityDto, CreateActivityDto>();
+            // services.AddCrud<YouthCenter, YouthCenterDto, CreateYouthCenterDto>();
+            //services.AddCrud<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>();
             services.AddScoped<IYouthCenterService, YouthCenterService>();
             services.AddScoped<IYouthCenterActivityService, YouthCenterActivityService>();
+            services.AddScoped<IActivityService, ActivityService>();
 
 
             return services;

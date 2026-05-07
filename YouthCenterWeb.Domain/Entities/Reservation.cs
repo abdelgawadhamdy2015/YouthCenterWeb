@@ -27,7 +27,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 
 
         // 📌 حالة الحجز
-        public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
+        [Required]
+        public ReservationStatus Status { get; set; }
 
 
         public int UserId { get; set; }

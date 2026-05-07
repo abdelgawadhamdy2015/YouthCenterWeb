@@ -4,6 +4,8 @@ using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Extentions;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
@@ -11,9 +13,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ActivityController(IGenericService<Activity, ActivityDto, CreateActivityDto> genericService) : ControllerBase
+    public class ActivityController(IActivityService genericService) : ControllerBase
     {
-        private readonly IGenericService<Activity, ActivityDto, CreateActivityDto> service = genericService;
+        private readonly IActivityService service = genericService;
 
 
 
@@ -26,7 +28,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 
             );
 
-            if (activities.Count == 0) return NotFound(new BaseResponse<ActivityDto>
+            if (activities?.Count == 0) return NotFound(new BaseResponse<ActivityDto>
             {
                 Result = 0,
                 Alert = new Alert
@@ -65,6 +67,46 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 }
             });
 
+        }
+
+
+
+        [HttpGet("ActivitiesByCenter")]
+        [Authorize(Policies.RequireAdmin)]
+        public async Task<IActionResult> GetActivitiesByCenter()
+        {
+            int? youthCenterId = User.GetYouthCenterId();
+
+            if (youthCenterId == null)
+                throw new BusinessException("youthCenterId is null");
+
+            var activities = await service.GetActivitiesByCenter(
+                youthCenterId.Value
+            );
+
+            if (activities == null || activities.Count == 0)
+            {
+                return NotFound(new BaseResponse<ActivityDto>
+                {
+                    Result = 0,
+                    Alert = new Alert
+                    {
+                        MessageAr = Messages.Data.NoDataAr,
+                        MessageEn = Messages.Data.NoDataEn
+                    }
+                });
+            }
+
+            return Ok(new BaseResponse<List<ActivityDto>>
+            {
+                Result = 1,
+                Data = activities,
+                Alert = new Alert
+                {
+                    MessageAr = Messages.Data.FoundAr,
+                    MessageEn = Messages.Data.FoundEn
+                }
+            });
         }
     }
 }
