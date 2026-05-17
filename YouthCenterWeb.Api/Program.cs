@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+using YouthCenterWeb.YouthCenterWeb.Application.Services;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -72,6 +73,10 @@ if (string.IsNullOrWhiteSpace(jwtKey))
 {
     throw new Exception("JWT Key is missing in appsettings.json");
 }
+#region background service
+builder.Services.AddHostedService<ReservationStatusBackgroundService>();
+#endregion
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>

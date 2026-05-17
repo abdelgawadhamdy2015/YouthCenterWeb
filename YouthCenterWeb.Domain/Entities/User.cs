@@ -16,9 +16,11 @@ namespace YouthCenterWeb.Models
         [Required, MaxLength(150), EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        public string? Mobile { get; set; }
+        public string Mobile { get; set; } = string.Empty;
 
         public string? ImageUrl { get; set; }
+        public string? Bio { get; set; }
+
 
         // 🔗 Foreign Key → YouthCenter
         public int? YouthCenterId { get; set; } = null;
@@ -26,13 +28,18 @@ namespace YouthCenterWeb.Models
         // 🔗 Navigation
         public YouthCenter? YouthCenter { get; set; }
 
+        // 🔗 Foreign Key → Activity
+        public int? ActivityId { get; set; }
+
+        // 🔗 Navigation
+        public Activity? Activity { get; set; }
 
 
         // 🔗 Navigation
         public UserRole Role { get; set; } = UserRole.User;
 
         // 🔗 Reservations
-        [JsonIgnore] // ❗ لتقليل حجم الـ JSON
+        [JsonIgnore] //  لتقليل حجم الـ JSON
         public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 
         // 🧠 محسوبة مش متخزنة

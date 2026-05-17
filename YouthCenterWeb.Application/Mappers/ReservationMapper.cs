@@ -23,7 +23,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
 
         public ReservationDto ToDto(Reservation x)
         {
-            Console.WriteLine($"Mapping Reservation with Id: {x.Id}, Date: {x.Date}, StartTime: {x.StartTime}, EndTime: {x.EndTime}, UserId: {x.UserId}, YouthCenterActivityId: {x.YouthCenterActivityId}, Status: {x.Status}");
 
             var reservationDto = new ReservationDto
             {
@@ -35,9 +34,14 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 Username = x.User?.Name,
                 YouthCenterActivityId = x.YouthCenterActivityId,
                 Status = x.Status,
-                YouthCenterName = x.YouthCenterActivity != null && x.YouthCenterActivity.YouthCenter != null ? x.YouthCenterActivity.YouthCenter.Name : null,
+                YouthCenterName = x.YouthCenterActivity?.YouthCenter?.Name,
+                YouthCenterId = x.YouthCenterActivity?.YouthCenterId,
+                ActivityName = x.YouthCenterActivity?.Activity?.NameAr,
+                ActivityId = x.YouthCenterActivity?.ActivityId,
                 TotalPrice = x.TotalPrice,
-                DurationHours = x.DurationHours
+                DurationHours = x.DurationHours,
+                SpecialRequest = x.SpecialRequest
+
             };
             return reservationDto;
         }
@@ -51,7 +55,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 EndTime = dto.EndTime,
                 UserId = dto.UserId,
                 YouthCenterActivityId = dto.YouthCenterActivityId,
-                Status = dto.Status
+                Status = dto.Status,
+                SpecialRequest = dto.SpecialRequest
+
             };
         }
 
@@ -63,6 +69,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             entity.UserId = updateDto.UserId;
             entity.YouthCenterActivityId = updateDto.YouthCenterActivityId;
             entity.Status = updateDto.Status;
+            entity.SpecialRequest = updateDto.SpecialRequest;
+
             return entity;
         }
     }

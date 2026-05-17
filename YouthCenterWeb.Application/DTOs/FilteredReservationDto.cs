@@ -22,6 +22,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
 
         public ReservationStatus? Status { get; set; }
 
+        public string? SpecialRequest { get; set; } = string.Empty;
 
 
     }

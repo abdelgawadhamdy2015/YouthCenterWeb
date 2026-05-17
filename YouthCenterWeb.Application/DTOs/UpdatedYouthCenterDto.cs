@@ -14,6 +14,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
 
         public string Phone { get; set; } = string.Empty;
 
+
         public string? Description { get; set; }
     }
 }

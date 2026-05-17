@@ -7,7 +7,6 @@ using YouthCenterWeb.InterFaces;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.Services;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
-using YouthCenterWeb.YouthCenterWeb.Application.Extensions;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Application.Mapper;
 using YouthCenterWeb.YouthCenterWeb.Application.Mappers;
@@ -50,12 +49,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IReservationService, ReservationService>();
             services.AddScoped<IUserService, UserService>();
-            //services.AddCrud<Activity, ActivityDto, CreateActivityDto>();
-            // services.AddCrud<YouthCenter, YouthCenterDto, CreateYouthCenterDto>();
-            //services.AddCrud<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>();
             services.AddScoped<IYouthCenterService, YouthCenterService>();
             services.AddScoped<IYouthCenterActivityService, YouthCenterActivityService>();
             services.AddScoped<IActivityService, ActivityService>();
+            services.AddScoped<IDashboardService, DashboardService>();
 
 
             return services;

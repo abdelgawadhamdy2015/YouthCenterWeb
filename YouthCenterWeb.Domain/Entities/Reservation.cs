@@ -44,6 +44,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 
         public string? RejectionReason { get; set; }
 
+        public string? SpecialRequest { get; set; } = string.Empty;
+
         public int? ReviewedBy { get; set; }
 
         public DateTime? ReviewedAt { get; set; }
@@ -55,7 +57,4 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
            ;
 
     }
-
-
-
 }

@@ -2,10 +2,12 @@
 using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
+using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
+using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
@@ -118,6 +120,53 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             await repo.SaveChangesAsync();
         }
 
+        public async Task<ReservationDto?> UpdateReservationAsync(UpdateReservationDto dto, int id, int userId, UserRole role, int? adminCenterId)
+        {
+            var entity = await repo.GetByIdWithRelationsAsync(id)
+                          ?? throw new NotFoundException("Reservation", id);
 
+            if (entity.Status != ReservationStatus.Pending)
+                throw new BusinessException("Only Pending reservations can be updated.");
+
+            if (role == UserRole.User && entity.UserId != userId)
+                throw new ForbiddenException();
+
+            if (role == UserRole.Admin &&
+                                   entity.YouthCenterActivity?.YouthCenterId != adminCenterId)
+                throw new ForbiddenException();
+
+            entity = UpdateReservationDto(entity, dto);
+
+            repo.Update(entity);
+            await repo.SaveChangesAsync();
+
+            return mapper.ToDto(entity);
+        }
+
+        private static Reservation UpdateReservationDto(Reservation reservation, UpdateReservationDto dto)
+        {
+
+
+            if (dto.Date.HasValue)
+                reservation.Date = dto.Date.Value;
+
+            if (dto.StartTime.HasValue)
+                reservation.StartTime = dto.StartTime.Value;
+
+            if (dto.EndTime.HasValue)
+                reservation.EndTime = dto.EndTime.Value;
+
+            if (dto.YouthCenterActivityId.HasValue)
+                reservation.YouthCenterActivityId =
+                    dto.YouthCenterActivityId.Value;
+
+            if (dto.SpecialRequest != null)
+                reservation.SpecialRequest = dto.SpecialRequest;
+
+            if (dto.TotalPrice != null)
+                reservation.TotalPrice = (decimal)dto.TotalPrice;
+
+            return reservation;
+        }
     }
 }

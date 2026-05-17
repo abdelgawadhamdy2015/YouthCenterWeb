@@ -89,12 +89,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Application.Common.Constants;
-using YouthCenterWeb.DTOs;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Extentions;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers

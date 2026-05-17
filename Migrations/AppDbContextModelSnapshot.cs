@@ -30,6 +30,12 @@ namespace YouthCenterWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ActivityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Bio")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -43,6 +49,7 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Mobile")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
@@ -57,6 +64,8 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ActivityId");
 
                     b.HasIndex("YouthCenterId");
 
@@ -149,6 +158,9 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int?>("ReviewedBy")
                         .HasColumnType("int");
 
+                    b.Property<string>("SpecialRequest")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<TimeOnly>("StartTime")
                         .HasColumnType("time");
 
@@ -214,10 +226,16 @@ namespace YouthCenterWeb.Migrations
 
             modelBuilder.Entity("YouthCenterWeb.Models.User", b =>
                 {
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Activity", "Activity")
+                        .WithMany()
+                        .HasForeignKey("ActivityId");
+
                     b.HasOne("YouthCenterWeb.Models.YouthCenter", "YouthCenter")
                         .WithMany()
                         .HasForeignKey("YouthCenterId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Activity");
 
                     b.Navigation("YouthCenter");
                 });

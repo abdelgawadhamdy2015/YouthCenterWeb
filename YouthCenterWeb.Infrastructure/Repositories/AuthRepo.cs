@@ -10,7 +10,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
 
         public async Task<User?> GetByEmailAsync(string email)
         {
-            return await _context.Users.AsAsyncEnumerable().FirstOrDefaultAsync(x => x.Email == email);
+            return await _context.Users.AsQueryable().Include(u => u.Activity).Include(u => u.YouthCenter).Include(u => u.Reservations).FirstOrDefaultAsync(x => x.Email == email);
         }
 
         public async Task AddAsync(User user)

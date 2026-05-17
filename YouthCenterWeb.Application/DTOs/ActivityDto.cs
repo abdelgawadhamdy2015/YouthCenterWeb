@@ -1,4 +1,4 @@
-namespace YouthCenterWeb.Data.DTOs
+namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
 {
     public class ActivityDto
     {

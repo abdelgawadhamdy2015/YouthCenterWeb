@@ -11,27 +11,27 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
         private readonly AppDbContext _context = context;
 
         private IQueryable<User> WithIncludes(
-            params Expression<Func<User, object>>[] includes)
+          )
         {
             IQueryable<User> query = _context.Users;
-            foreach (var include in includes)
-                query = query.Include(include);
+
+            query = query.Include(u => u.Activity).Include(u => u.YouthCenter).Include(u => u.Reservations);
             return query;
         }
 
         public Task<List<User>> GetAllAsync(
             params Expression<Func<User, object>>[] includes) =>
-            WithIncludes(includes).ToListAsync();
+            WithIncludes().ToListAsync();
 
         public Task<User?> GetByIdAsync(
             int id,
             params Expression<Func<User, object>>[] includes) =>
-            WithIncludes(includes).FirstOrDefaultAsync(u => u.Id == id);
+            WithIncludes().FirstOrDefaultAsync(u => u.Id == id);
 
         public Task<User?> GetByEmailAsync(
             string email,
             params Expression<Func<User, object>>[] includes) =>
-            WithIncludes(includes).FirstOrDefaultAsync(u => u.Email == email);
+            WithIncludes().FirstOrDefaultAsync(u => u.Email == email);
 
         public async Task AddAsync(User entity) =>
             await _context.Users.AddAsync(entity);

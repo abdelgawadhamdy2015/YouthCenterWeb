@@ -1,8 +1,8 @@
 
 using YouthCenterWeb.Data.DTOs;
-using YouthCenterWeb.DTOs;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
@@ -26,7 +26,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         {
             var user = await userRepository.GetByIdAsync(
                 id,
-                u => u.Reservations
+               [ u => u.Reservations,
+
+               ]
                 );
 
             return user != null ? userMapper.ToDto(user) : null;
@@ -51,7 +53,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             user.Name = dto.Name;
             user.Mobile = dto.Mobile;
             user.ImageUrl = dto.ImageUrl;
-
+            user.Bio = dto.Bio;
+            user.ActivityId = dto.FavActivityId;
             userRepository.Update(user);
             await userRepository.SaveChangesAsync();
             return userMapper.ToDto(user);

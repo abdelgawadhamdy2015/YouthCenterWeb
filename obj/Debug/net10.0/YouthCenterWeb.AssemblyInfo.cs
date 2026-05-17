@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("YouthCenterWeb")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+78a5a9d8fac3d049dc0bed6cf31d36a6e9c32ea8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d2d81c3e638606e0c00c7bf44f1948f78bdaa9f5")]
 [assembly: System.Reflection.AssemblyProductAttribute("YouthCenterWeb")]
 [assembly: System.Reflection.AssemblyTitleAttribute("YouthCenterWeb")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

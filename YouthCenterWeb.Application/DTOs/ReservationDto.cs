@@ -21,7 +21,11 @@ namespace YouthCenterWeb.DTOs
         public int YouthCenterActivityId { get; set; }
         public string? ActivityName { get; set; } = string.Empty;
 
+        public int? ActivityId { get; set; }
+        public int? YouthCenterId { get; set; }
+
         public string? YouthCenterName { get; set; } = string.Empty;
+        public string? SpecialRequest { get; set; } = string.Empty;
 
         public decimal DurationHours { get; set; }
 

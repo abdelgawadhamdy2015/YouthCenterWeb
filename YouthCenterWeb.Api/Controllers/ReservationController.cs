@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTOs;
@@ -58,7 +59,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
             if (role == UserRole.User)
             {
                 dto.UserId = User.GetUserId();   // user only sees their own
-                                                 // dto.YouthCenterId = null;               // strip center filter
+
             }
             else if (role == UserRole.Admin)
             {
@@ -107,7 +108,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         }
 
         // ── GET api/reservation/{id} ──────────────────────────────────────────
-        // Returns 404 if not found — middleware handles NotFoundException
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -127,7 +127,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         }
 
         // ── POST api/reservation ─────────────────────────────────────────────
-        // Returns 201 Created with location header
         [HttpPost]
         public async Task<IActionResult> Create(CreateReservationDto dto)
         {
@@ -151,8 +150,29 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 });
         }
 
-        // ── DELETE api/reservation/{id} ───────────────────────────────────────
-
+        // ── UPDATE api/reservation/{id} ───────────────────────────────────────
+        [Authorize(policy: Policies.RequireAuthenticated)]
+        [HttpPut]
+        public async Task<IActionResult> Update(UpdateReservationDto dto, int id)
+        {
+            var result = await _service.UpdateReservationAsync(
+                 dto,
+                 id,
+                userId: User.GetUserId(),
+                role: User.GetRole(),
+                adminCenterId: User.GetYouthCenterId()
+            );
+            return Ok(new BaseResponse<ReservationDto>
+            {
+                Result = 1,
+                Data = result,
+                Alert = new Alert
+                {
+                    MessageAr = Messages.Data.UpdatedAr,
+                    MessageEn = Messages.Data.UpdatedEn
+                }
+            });
+        }
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

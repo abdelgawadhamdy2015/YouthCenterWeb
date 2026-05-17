@@ -1,7 +1,7 @@
 using YouthCenterWeb.Data.DTOs;
-using YouthCenterWeb.DTOs;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 
 public class UserMapper : IMapper<User, UserDto, RegisterDto>
 {
@@ -12,6 +12,9 @@ public class UserMapper : IMapper<User, UserDto, RegisterDto>
             Name = createDto.Name,
             Email = createDto.Email,
             Mobile = createDto.Mobile,
+            Bio = createDto.Bio,
+            ActivityId = createDto.FavActivityId,
+
         };
     }
 
@@ -24,9 +27,12 @@ public class UserMapper : IMapper<User, UserDto, RegisterDto>
             Email = entity.Email,
             Mobile = entity.Mobile,
             ImageUrl = entity.ImageUrl,
-            YouthCenterId = entity.YouthCenterId ?? 0,
+            YouthCenterId = entity.YouthCenterId,
+            YouthCenterName = entity.YouthCenter?.Name,
             Role = entity.Role,
-            ReservationCount = entity.ReservationCount
+            ReservationCount = entity.ReservationCount,
+            FavActivityId = entity.ActivityId,
+            Bio = entity.Bio
         };
     }
 
@@ -40,7 +46,9 @@ public class UserMapper : IMapper<User, UserDto, RegisterDto>
             Mobile = dto.Mobile,
             ImageUrl = dto.ImageUrl,
             YouthCenterId = dto.YouthCenterId,
-            Role = dto.Role
+            Role = dto.Role,
+            Bio = dto.Bio,
+            ActivityId = dto.FavActivityId
         };
     }
 
@@ -49,6 +57,8 @@ public class UserMapper : IMapper<User, UserDto, RegisterDto>
         entity.Name = updateDto.Name;
         entity.Mobile = updateDto.Mobile;
         entity.ImageUrl = updateDto.ImageUrl;
+        entity.Bio = updateDto.Bio;
+        entity.ActivityId = updateDto.FavActivityId;
 
         return entity;
     }

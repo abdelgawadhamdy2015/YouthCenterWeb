@@ -25,7 +25,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 Email = dto.Email,
                 Name = dto.Name,
                 Mobile = dto.Mobile,
-                Role = UserRole.User,          // always User — never from dto
+                Role = UserRole.User,
                 YouthCenterId = null,                   // users have no center
                 HashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Password)
             };
@@ -94,8 +94,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 {
                     Email = user.Email,
                     Name = user.Name,
-                    Phone = user.Mobile ?? "",
+                    Mobile = user.Mobile,
                     Role = user.Role,
+                    FavActivityName = user.Activity?.NameAr,
+                    YouthCenterName = user.YouthCenter?.Name,
                     Token = jwtService.GenerateToken(user)
                 },
                 Alert = new Alert

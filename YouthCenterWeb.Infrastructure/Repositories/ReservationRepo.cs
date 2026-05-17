@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Extensions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
+using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 
@@ -82,4 +84,72 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
 
     public Task SaveChangesAsync() =>
         _context.SaveChangesAsync();
+
+
+
+    public async Task<int> GetCount(FilterReservationDashboardDto? dto)
+    {
+        var query = WithRelations().AsQueryable();
+
+        if (dto?.Status != null)
+            query = query.Where(x => x.Status == dto.Status);
+
+        if (dto?.DateFrom != null)
+            query = query.Where(x => x.Date >= dto.DateFrom);
+
+        if (dto?.DateTo != null)
+            query = query.Where(x => x.Date <= dto.DateTo);
+
+        return await query.CountAsync();
+    }
+
+    public async Task<List<PeakHourDto>> GetPeakBookingHoursAsync(
+    FilteredReservationDto? dto)
+    {
+        var query = _context.Reservations.AsQueryable();
+
+        if (dto?.DateFrom != null)
+            query = query.Where(x => x.Date >= dto.DateFrom);
+
+        if (dto?.DateTo != null)
+            query = query.Where(x => x.Date <= dto.DateTo);
+
+
+        return await query
+          .GroupBy(x => x.StartTime.Hour)
+          .Select(g => new PeakHourDto
+          {
+              Hour = g.Key,
+              BookingCount = g.Count()
+          })
+          .OrderBy(x => x.Hour)
+          .ToListAsync();
+    }
+
+    public async Task<List<PeakHourDto>> GetAvailBookingHoursAsync(
+   FilteredReservationDto? dto)
+    {
+        var query = _context.Reservations.AsQueryable();
+
+        if (dto?.YouthCenterId != null)
+        {
+            query = query.Where((x) => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
+        }
+
+        if (dto?.DateFrom != null)
+            query = query.Where(x => x.Date >= dto.DateFrom);
+
+        if (dto?.DateTo != null)
+            query = query.Where(x => x.Date <= dto.DateTo);
+
+        return await query
+          .GroupBy(x => x.StartTime.Hour)
+          .Select(g => new PeakHourDto
+          {
+              Hour = g.Key,
+              BookingCount = g.Count()
+          })
+          .OrderBy(x => x.Hour)
+          .ToListAsync();
+    }
 }
