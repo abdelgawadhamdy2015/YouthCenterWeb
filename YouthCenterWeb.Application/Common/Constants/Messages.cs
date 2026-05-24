@@ -40,6 +40,9 @@ namespace YouthCenterWeb.Application.Common.Constants
             public static string DeletionFailedAr => "فشل الحذف";
             public static string DeletionFailedEn => "Deletion Failed";
 
+            public static string InvalidYouthCenterIdEn => "Invalid Youth Center Id";
+            public static string InvalidYouthCenterIdAr => "معرف مركز الشباب غير صالح";
+
 
         }
 

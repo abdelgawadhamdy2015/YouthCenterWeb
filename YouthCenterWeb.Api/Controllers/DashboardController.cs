@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Extentions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
@@ -11,15 +12,25 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(policy: Policies.RequireAdmin)]
+    [Authorize(policy: Policies.RequireAuthenticated)]
 
     public class DashboardController(IDashboardService service) : ControllerBase
     {
         [HttpGet]
         public async Task<IActionResult> GetDashboardData()
         {
+            DashboardOverviewDto? data;
+            if (User.GetRole() == UserRole.Admin)
+            {
 
-            var data = await service.GetDashboardOverviewDtoAsync(youthCenterId: User.GetYouthCenterId());
+                data = await service.GetDashboardOverviewDtoAsync(youthCenterId: User.GetYouthCenterId(), userId: null);
+            }
+            else
+            {
+
+                data = await service.GetDashboardOverviewDtoAsync(userId: User.GetUserId(), youthCenterId: null);
+            }
+
             return Ok(new BaseResponse<DashboardOverviewDto>
             {
                 Result = 1,

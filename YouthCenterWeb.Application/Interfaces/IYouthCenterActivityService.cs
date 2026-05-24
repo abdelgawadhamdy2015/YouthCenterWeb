@@ -10,5 +10,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Interfaces
         Task<List<YouthCenterActivityDto>?> GetYouthCenterActivitiesByActivityIdAsync(int ActivityId);
         Task<List<YouthCenterActivityDto>?> GetYouthCenterActivitiesByYouthCenterIdAsync(int YouthCenterId);
 
+        Task<YouthCenterActivityDto?> UpdateAsync(int id, YouthCenterActivityDto dto);
+
     }
 }

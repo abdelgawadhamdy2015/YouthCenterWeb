@@ -4,7 +4,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Interfaces
 {
     public interface IDashboardService
     {
-        public Task<DashboardOverviewDto> GetDashboardOverviewDtoAsync(int? youthCenterId);
+        public Task<DashboardOverviewDto> GetDashboardOverviewDtoAsync(int? youthCenterId, int? userId);
     }
 
 }

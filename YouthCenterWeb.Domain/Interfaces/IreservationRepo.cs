@@ -8,8 +8,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
     {
         Task<List<Reservation>> GetFiltersReservationsAsync(FilteredReservationDto? dto);
         Task<Reservation?> GetByIdWithRelationsAsync(int id);
-        Task<int> GetCount(FilterReservationDashboardDto? dto);
-
+        Task<int> GetCount(FilteredReservationDto? dto);
+        Task<int> GetActivityCount(FilteredReservationDto? dto);
         Task<YouthCenterActivity?> GetYouthCenterActivity(int youthCenterActivityId);
         Task<List<PeakHourDto>> GetPeakBookingHoursAsync(FilteredReservationDto? dto);
         Task AddAsync(Reservation entity);

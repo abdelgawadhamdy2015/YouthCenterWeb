@@ -1,88 +1,115 @@
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
-using YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
-    public class DashboardService(IReservationRepo reservationRepo, IActivityService activityService) : IDashboardService
+    public class DashboardService(
+        IReservationRepo reservationRepo,
+        IActivityService activityService) : IDashboardService
     {
-        public async Task<DashboardOverviewDto> GetDashboardOverviewDtoAsync(int? youthCenterId)
+        public async Task<DashboardOverviewDto> GetDashboardOverviewDtoAsync(int? youthCenterId, int? userId)
         {
-            FilterReservationDashboardDto dashboardDto = new();
-            var allBookingCount = await reservationRepo.GetCount(dashboardDto);
-
-            dashboardDto.Status = ReservationStatus.Pending;
-            var allPinding = await reservationRepo.GetCount(dashboardDto);
-
-            dashboardDto.Status = ReservationStatus.Completed;
-            var allCompleted = await reservationRepo.GetCount(dashboardDto);
-
-            dashboardDto.Status = ReservationStatus.Cancelled;
-            var allRejected = await reservationRepo.GetCount(dashboardDto);
-
-            dashboardDto.Status = ReservationStatus.Confirmed;
-            var allConfirmed = await reservationRepo.GetCount(dashboardDto);
-
-            var statuses = new List<BookingStatusDto>
+            var filter = new FilteredReservationDto
             {
-                new() { Status = ReservationStatus.Pending, Count = allPinding },
-                new() { Status = ReservationStatus.Cancelled, Count = allRejected },
-                new() { Status = ReservationStatus.Completed, Count = allCompleted },
-                new() { Status = ReservationStatus.Confirmed, Count = allConfirmed }
+                YouthCenterId = youthCenterId,
+                UserId = userId
             };
 
+            var allBookingCount = await reservationRepo.GetCount(filter);
+            var bookingStatuses = await GetBookingStatusesAsync(filter);
+            var weeklyStats = await GetWeeklyStatsAsync(filter);
+            var activityBreakdown = await GetActivityBreakdownAsync(filter, userId, youthCenterId);
+            var peakHours = await reservationRepo.GetPeakBookingHoursAsync(filter);
 
-            dashboardDto.DateFrom = DateTime.Now;
-            dashboardDto.DateTo = DateTime.Now.AddDays(7);
-            dashboardDto.Status = null;
-            var allReservationWeekCount = await reservationRepo.GetCount(dashboardDto);
-            dashboardDto.Status = ReservationStatus.Cancelled;
-            var rejectedWeekCount = await reservationRepo.GetCount(dashboardDto);
-            dashboardDto.Status = ReservationStatus.Confirmed;
-            var acceptedWeekCount = await reservationRepo.GetCount(dashboardDto);
-
-            dashboardDto.Status = ReservationStatus.Pending;
-            var pindingWeekCount = await reservationRepo.GetCount(dashboardDto);
-
-            var dashboardStatesData = new DashboardStatsDto
+            return new DashboardOverviewDto
             {
-                RejectedBookings = rejectedWeekCount,
-                ALLBookings = allReservationWeekCount,
-                PindingBookings = pindingWeekCount,
-                AcceptedBooking = acceptedWeekCount
+                AllBookingCount = allBookingCount,
+                BookingStatuses = bookingStatuses,
+                Stats = weeklyStats,
+                ActivityBreakdown = activityBreakdown,
+                PeakBookingHours = peakHours
+            };
+        }
+
+        private async Task<List<BookingStatusDto>> GetBookingStatusesAsync(FilteredReservationDto filter)
+        {
+            var statuses = new[]
+            {
+                ReservationStatus.Pending,
+                ReservationStatus.Cancelled,
+                ReservationStatus.Completed,
+                ReservationStatus.Confirmed
             };
 
+            var results = new List<BookingStatusDto>();
 
-            var activitiesBreakDown = new List<ActivityBreakdownDto>();
-            var activities = await activityService.GetActivitiesByCenter(youthCenterId: (int)youthCenterId!);
-            for (int i = 0; i < activities.Count; i++)
+            foreach (var status in statuses)
             {
-                var count = await reservationRepo.GetCount(new FilterReservationDashboardDto
-                {
-                    ActivityId = activities[i].Id
-                });
-                activitiesBreakDown.Add(
-                  new ActivityBreakdownDto
-                  {
-                      Count = count,
-                      ActivityName = activities[i].NameAr
-                  }
-                );
+                filter.Status = status;
+                var count = await reservationRepo.GetCount(filter);
+                results.Add(new BookingStatusDto { Status = status, Count = count });
             }
 
-            var peakHours = await reservationRepo.GetPeakBookingHoursAsync(null);
+            filter.Status = null;
+            return results;
+        }
 
-            var dashboardData = new DashboardOverviewDto
+        private async Task<DashboardStatsDto> GetWeeklyStatsAsync(FilteredReservationDto filter)
+        {
+            filter.DateFrom = DateTime.Now;
+            filter.DateTo = DateTime.Now.AddDays(7);
+            filter.Status = null;
+
+            var total = await reservationRepo.GetCount(filter);
+
+            var statusCounts = new Dictionary<ReservationStatus, int>();
+            foreach (var status in new[] { ReservationStatus.Cancelled, ReservationStatus.Confirmed, ReservationStatus.Pending })
             {
-                Stats = dashboardStatesData,
-                BookingStatuses = statuses,
-                ActivityBreakdown = activitiesBreakDown,
-                AllBookingCount = allBookingCount,
-                PeakBookingHours = peakHours
+                filter.Status = status;
+                statusCounts[status] = await reservationRepo.GetCount(filter);
+            }
 
+            filter.Status = null;
+            filter.DateFrom = null;
+            filter.DateTo = null;
+
+            return new DashboardStatsDto
+            {
+                ALLBookings = total,
+                RejectedBookings = statusCounts[ReservationStatus.Cancelled],
+                AcceptedBooking = statusCounts[ReservationStatus.Confirmed],
+                PindingBookings = statusCounts[ReservationStatus.Pending]
             };
-            return dashboardData;
+        }
+
+        private async Task<List<ActivityBreakdownDto>> GetActivityBreakdownAsync(
+            FilteredReservationDto baseFilter, int? userId, int? youthCenterId)
+        {
+            var activities = await activityService.GetAllAsync();
+
+            if (activities is null or { Count: 0 })
+                return [];
+
+            var breakdown = new List<ActivityBreakdownDto>();
+
+            foreach (var activity in activities)
+            {
+                var count = await reservationRepo.GetActivityCount(new FilteredReservationDto
+                {
+                    UserId = userId,
+                    ActivityId = activity.Id,
+                    YouthCenterId = youthCenterId
+                });
+
+                breakdown.Add(new ActivityBreakdownDto
+                {
+                    Count = count,
+                    ActivityName = activity.NameAr
+                });
+            }
+
+            return breakdown;
         }
     }
 }

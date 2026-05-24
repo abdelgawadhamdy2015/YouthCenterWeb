@@ -22,7 +22,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             var youthCenterActivity = await repo.GetByIdAsync(id)
                           ?? throw new NotFoundException("Reservation", id);
 
-            await repo.DeleteAsync(youthCenterActivity);   // ← entity passed directly, no second DB call
+            await repo.DeleteAsync(youthCenterActivity);
             await repo.SaveChangesAsync();
             return true;
         }
@@ -51,6 +51,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         {
             var youthCenterActivities = await repo.GetByYouthCenterId(YouthCenterId);
             return youthCenterActivities?.Select(mapper.ToDto).ToList();
+        }
+
+        public async Task<YouthCenterActivityDto?> UpdateAsync(int id, YouthCenterActivityDto dto)
+        {
+            var existingEntity = await repo.GetByIdAsync(id)
+                ?? throw new NotFoundException("Youth Center Activity", id);
+            await repo.UpdateAsync(mapper.UpdateEntity(existingEntity, dto));
+            await repo.SaveChangesAsync();
+            return await GetByIdAsync(id);
         }
     }
 }
