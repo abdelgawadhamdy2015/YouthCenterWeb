@@ -109,5 +109,39 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 }
             });
         }
+
+        [HttpGet("AvailableActivitiesForYouthCenter")]
+        [Authorize(Policies.RequireAdmin)]
+        public async Task<IActionResult> GetAvailableActivitiesForYouthCenter()
+        {
+            int? youthCenterId = User.GetYouthCenterId() ?? throw new BusinessException("youthCenterId is null");
+            var activities = await service.GetAvailableActivitiesForYouthCenter(
+                youthCenterId.Value
+            );
+
+            if (activities == null || activities.Count == 0)
+            {
+                return NotFound(new BaseResponse<ActivityDto>
+                {
+                    Result = 0,
+                    Alert = new Alert
+                    {
+                        MessageAr = Messages.Data.NoDataAr,
+                        MessageEn = Messages.Data.NoDataEn
+                    }
+                });
+            }
+
+            return Ok(new BaseResponse<List<ActivityDto>>
+            {
+                Result = 1,
+                Data = activities,
+                Alert = new Alert
+                {
+                    MessageAr = Messages.Data.FoundAr,
+                    MessageEn = Messages.Data.FoundEn
+                }
+            });
+        }
     }
 }

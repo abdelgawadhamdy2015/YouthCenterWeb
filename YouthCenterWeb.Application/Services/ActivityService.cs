@@ -38,6 +38,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             return activities?.Select(mapper.ToDto).ToList();
         }
 
+        public async Task<List<ActivityDto>?> GetAvailableActivitiesForYouthCenter(int youthCenterId)
+        {
+            var activities = await repo.GetAvailableActivitiesForYouthCenter(youthCenterId);
+            return activities?.Select(mapper.ToDto).ToList();
+        }
+
         public async Task<ActivityDto?> GetByIdAsync(int id, params Expression<Func<Activity, object>>[] includes)
         {
             var activity = await repo.GetByIdAsync(id);
