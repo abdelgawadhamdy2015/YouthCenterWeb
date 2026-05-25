@@ -7,7 +7,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Interfaces
     public interface IYouthCenterActivityService : IGenericService<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>
     {
 
-        Task<List<YouthCenterActivityDto>?> GetYouthCenterActivitiesByActivityIdAsync(int ActivityId);
+        Task<List<YouthCenterActivityDto>?> GetYouthCenterActivitiesByActivityIdAsync(int ActivityId, int? youthCenterId = null);
         Task<List<YouthCenterActivityDto>?> GetYouthCenterActivitiesByYouthCenterIdAsync(int YouthCenterId);
 
         Task<YouthCenterActivityDto?> UpdateAsync(int id, YouthCenterActivityDto dto);

@@ -115,8 +115,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         [HttpGet("activity/{activityId}")]
         public async Task<IActionResult> GetByActivityId(int activityId)
         {
+
+            var youthCenterId = User.GetYouthCenterId();
+            if (User.GetRole() == UserRole.Admin)
+            {
+                if (youthCenterId == null)
+                    return MissingYouthCenterIdResponse();
+            }
             var result = await _youthCenterActivityService
-                .GetYouthCenterActivitiesByActivityIdAsync(activityId);
+                .GetYouthCenterActivitiesByActivityIdAsync(activityId, youthCenterId);
 
             if (result == null || result.Count == 0)
                 return NotFound(new BaseResponse<List<YouthCenterActivityDto>>

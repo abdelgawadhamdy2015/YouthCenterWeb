@@ -20,8 +20,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
         public async Task<List<YouthCenterActivity>?> GetAllAsync(params Expression<Func<YouthCenterActivity, object>>[] includes) =>
             await WithRelations().ToListAsync();
 
-        public async Task<List<YouthCenterActivity>?> GetByActivityId(int? activityId, params Expression<Func<YouthCenterActivity, object>>[] includes) =>
-           await WithRelations().Where(yca => yca.ActivityId == activityId).ToListAsync();
+        public async Task<List<YouthCenterActivity>?> GetByActivityId(int? activityId, int? youthCenterId, params Expression<Func<YouthCenterActivity, object>>[] includes) =>
+           await WithRelations().Where(yca => yca.ActivityId == activityId && yca.YouthCenterId == youthCenterId).ToListAsync();
 
         public async Task<YouthCenterActivity?> GetByIdAsync(int? id, params Expression<Func<YouthCenterActivity, object>>[] includes) =>
              context.YouthCenterActivities.FirstOrDefault(yca => yca.Id == id);

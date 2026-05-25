@@ -41,9 +41,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             else return null;
         }
 
-        public async Task<List<YouthCenterActivityDto>?> GetYouthCenterActivitiesByActivityIdAsync(int ActivityId)
+        public async Task<List<YouthCenterActivityDto>?> GetYouthCenterActivitiesByActivityIdAsync(int ActivityId, int? youthCenterId = null)
         {
-            var youthCenterActivities = await repo.GetByActivityId(ActivityId);
+            var youthCenterActivities = await repo.GetByActivityId(ActivityId, youthCenterId);
             return youthCenterActivities?.Select(mapper.ToDto).ToList();
         }
 
