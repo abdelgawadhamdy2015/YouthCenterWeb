@@ -20,13 +20,21 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
         public async Task<List<YouthCenterActivity>?> GetAllAsync(params Expression<Func<YouthCenterActivity, object>>[] includes) =>
             await WithRelations().ToListAsync();
 
-        public async Task<List<YouthCenterActivity>?> GetByActivityId(int? activityId, int? youthCenterId, params Expression<Func<YouthCenterActivity, object>>[] includes) =>
-           await WithRelations().Where(yca => yca.ActivityId == activityId && yca.YouthCenterId == youthCenterId).ToListAsync();
+        public async Task<List<YouthCenterActivity>?> GetByActivityId(int activityId, int? youthCenterId, params Expression<Func<YouthCenterActivity, object>>[] includes)
+        {
+            var query = WithRelations().AsQueryable();
+            query = query.Where(yc => yc.ActivityId == activityId);
+            if (youthCenterId != null)
+                query = query.Where(yc => yc.YouthCenterId == youthCenterId);
+
+            return await query.ToListAsync();
+
+        }
 
         public async Task<YouthCenterActivity?> GetByIdAsync(int? id, params Expression<Func<YouthCenterActivity, object>>[] includes) =>
              context.YouthCenterActivities.FirstOrDefault(yca => yca.Id == id);
 
-        public async Task<List<YouthCenterActivity>?> GetByYouthCenterId(int? youthCenterId, params Expression<Func<YouthCenterActivity, object>>[] includes) =>
+        public async Task<List<YouthCenterActivity>?> GetByYouthCenterId(int youthCenterId, params Expression<Func<YouthCenterActivity, object>>[] includes) =>
             await WithRelations().Where(yca => yca.YouthCenterId == youthCenterId).ToListAsync();
 
         public async Task SaveChangesAsync() =>
