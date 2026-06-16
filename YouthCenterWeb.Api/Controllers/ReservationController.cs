@@ -173,6 +173,46 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 }
             });
         }
+
+
+        // Get Avil Hours that user can choose it 
+        [Authorize(policy: Policies.RequireAuthenticated)]
+        [HttpPost("available-hours")]
+        public async Task<ActionResult> GetAvailHours([FromBody] AvailBookingDto dto)
+        {
+
+            List<PeakHourDto> hours = await _service.GetAvailHoursAsync(dto) ?? throw new NotFoundException(message: Messages.Data.NoDataAr);
+            if (hours.Count == 0)
+            {
+                return NotFound(new BaseResponse<List<PeakHourDto>>
+                {
+                    Result = 0,
+                    Alert = new Alert
+                    {
+                        MessageAr = Messages.Data.NoDataAr,
+                        MessageEn = Messages.Data.NoDataEn
+
+                    }
+                });
+
+            }
+            else
+            {
+                return Ok(new BaseResponse<List<PeakHourDto>>
+                {
+                    Result = 1,
+                    Data = hours,
+                    Alert = new Alert
+                    {
+                        MessageAr = Messages.Data.NoDataAr,
+                        MessageEn = Messages.Data.NoDataEn
+
+                    }
+                });
+            }
+        }
+
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

@@ -1,3 +1,4 @@
+using System.Formats.Asn1;
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data;
@@ -135,12 +136,11 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             query = query.Where(x => x.Date <= dto.DateTo);
 
         if (dto?.YouthCenterId != null)
-            query = query.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId); // bug fix: was <=
+            query = query.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
 
         if (dto?.UserId != null)
-            query = query.Where(x => x.UserId == dto.UserId); // bug fix: was <=
+            query = query.Where(x => x.UserId == dto.UserId);
 
-        // bug fix: removed the duplicate UserId check that was incorrectly filtering by ActivityId
 
         return await query
             .GroupBy(x => x.StartTime.Hour)
@@ -153,27 +153,44 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             .ToListAsync();
     }
 
-    public async Task<List<PeakHourDto>> GetAvailBookingHoursAsync(FilteredReservationDto? dto)
+    public async Task<List<PeakHourDto>> GetAvailBookingHoursAsync(AvailBookingDto? dto)
     {
         var query = WithRelations().AsQueryable();
 
         if (dto?.YouthCenterId != null)
-            query = query.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
+            query = query.Where(x =>
+                x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
 
-        if (dto?.DateFrom != null)
-            query = query.Where(x => x.Date >= dto.DateFrom);
+        if (dto?.Date != null)
+        {
+            var targetDate = dto.Date.Date;
+            query = query.Where(x => x.Date.Date == targetDate);
+        }
 
-        if (dto?.DateTo != null)
-            query = query.Where(x => x.Date <= dto.DateTo);
-
-        return await query
-            .GroupBy(x => x.StartTime.Hour)
-            .Select(g => new PeakHourDto
+        var reservations = await query
+            .Select(x => new
             {
-                Hour = g.Key,
-                BookingCount = g.Count()
+                StartHour = x.StartTime.Hour,
+                EndHour = x.EndTime.Hour
             })
-            .OrderBy(x => x.Hour)
             .ToListAsync();
+
+        // Count bookings for each hour
+        var hourCounts = reservations
+            .SelectMany(r =>
+                Enumerable.Range(r.StartHour, r.EndHour - r.StartHour)
+                          .Select(hour => hour))
+            .GroupBy(hour => hour)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Count());
+
+        return Enumerable.Range(0, 24)
+            .Select(hour => new PeakHourDto
+            {
+                Hour = hour,
+                BookingCount = hourCounts.GetValueOrDefault(hour, 0)
+            })
+            .ToList();
     }
 }

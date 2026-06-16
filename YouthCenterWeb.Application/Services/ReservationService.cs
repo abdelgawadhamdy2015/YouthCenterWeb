@@ -168,5 +168,14 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             return reservation;
         }
+
+
+
+        public async Task<List<PeakHourDto>?> GetAvailHoursAsync(AvailBookingDto dto)
+        {
+
+            return await repo.GetAvailBookingHoursAsync(dto);
+
+        }
     }
 }

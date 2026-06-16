@@ -12,6 +12,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
         Task<int> GetActivityCount(FilteredReservationDto? dto);
         Task<YouthCenterActivity?> GetYouthCenterActivity(int youthCenterActivityId);
         Task<List<PeakHourDto>> GetPeakBookingHoursAsync(FilteredReservationDto? dto);
+        Task<List<PeakHourDto>> GetAvailBookingHoursAsync(AvailBookingDto? dto);
         Task AddAsync(Reservation entity);
         void Delete(Reservation entity);    // sync — EF tracks it
         void Update(Reservation entity);    // sync — EF tracks it

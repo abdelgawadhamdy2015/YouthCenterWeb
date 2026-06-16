@@ -13,6 +13,7 @@ public interface IReservationService
 
     Task<ReservationDto?> CreateReservationAsync(CreateReservationDto dto, int userId, UserRole role, int? adminCenterId);
     Task<ReservationDto?> UpdateReservationAsync(UpdateReservationDto dto, int id, int userId, UserRole role, int? adminCenterId);
+    Task<List<PeakHourDto>?> GetAvailHoursAsync(AvailBookingDto dto);
 
     Task DeleteAsync(int id, int userId, UserRole role, int? adminCenterId);
     Task AcceptAsync(int id, int reviewedBy, int? adminCenterId, UserRole role);

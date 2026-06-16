@@ -24,7 +24,5 @@ namespace YouthCenterWeb.Data.DTOs
 
         public decimal? TotalPrice { get; set; }
 
-
-
     }
 }
