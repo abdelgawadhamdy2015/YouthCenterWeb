@@ -157,9 +157,9 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
     {
         var query = WithRelations().AsQueryable();
 
-        if (dto?.YouthCenterId != null)
+        if (dto?.YouthCenterActivityId != null)
             query = query.Where(x =>
-                x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
+                x.YouthCenterActivityId == dto.YouthCenterActivityId);
 
         if (dto?.Date != null)
         {

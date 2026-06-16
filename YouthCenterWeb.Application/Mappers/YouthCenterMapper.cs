@@ -11,6 +11,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             return new YouthCenter
             {
                 Name = createDto.Name,
+                Longitude = createDto.Longitude,
+                Latitude = createDto.Latitude,
                 Address = createDto.Address,
                 Phone = createDto.Phone,
                 Description = createDto.Description,
@@ -24,6 +26,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             {
                 Id = entity.Id,
                 Name = entity.Name,
+                Longitude = entity.Longitude,
+                Latitude = entity.Latitude,
                 Address = entity.Address,
                 Phone = entity.Phone,
                 IsActive = entity.IsActive,
@@ -39,6 +43,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             {
                 Id = dto.Id,
                 Name = dto.Name,
+                Longitude = dto.Longitude,
+                Latitude = dto.Latitude,
                 Address = dto.Address,
                 Phone = dto.Phone,
                 Description = dto.Description,
@@ -50,6 +56,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
         {
             entity.Name = updateDto.Name;
             entity.Address = updateDto.Address;
+            entity.Longitude = updateDto.Longitude;
+            entity.Latitude = updateDto.Latitude;
             entity.Phone = updateDto.Phone;
             entity.Description = updateDto.Description;
             entity.IsActive = updateDto.IsActive;
