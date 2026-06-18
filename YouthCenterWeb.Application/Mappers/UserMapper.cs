@@ -28,7 +28,7 @@ public class UserMapper : IMapper<User, UserDto, RegisterDto>
             Mobile = entity.Mobile,
             ImageUrl = entity.ImageUrl,
             YouthCenterId = entity.YouthCenterId,
-            YouthCenterName = entity.YouthCenter?.Name,
+            YouthCenterName = entity.YouthCenter?.NameAr,
             Role = entity.Role,
             ReservationCount = entity.ReservationCount,
             FavActivityId = entity.ActivityId,

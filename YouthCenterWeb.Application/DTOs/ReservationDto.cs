@@ -15,7 +15,8 @@ namespace YouthCenterWeb.DTOs
         public decimal? TotalPrice { get; set; }
 
         public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
-
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
         public int UserId { get; set; }
         public string? Username { get; set; } = string.Empty;
         public int YouthCenterActivityId { get; set; }

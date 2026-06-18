@@ -9,8 +9,8 @@ namespace YouthCenterWeb.Models
         public int Id { get; set; }
 
         [Required, MaxLength(150)]
-        public string Name { get; set; } = string.Empty;
-
+        public string NameAr { get; set; } = string.Empty;
+        public string NameEn { get; set; } = string.Empty;
         public string? City { get; set; }
 
         public string Email { get; set; } = string.Empty;
@@ -18,8 +18,9 @@ namespace YouthCenterWeb.Models
         [MaxLength(20)]
         public string Phone { get; set; } = string.Empty;
 
+        [Required]
         public double? Latitude { get; set; }
-
+        [Required]
         public double? Longitude { get; set; }
         public string? Address { get; set; }
 

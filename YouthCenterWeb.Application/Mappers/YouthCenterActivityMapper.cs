@@ -21,7 +21,7 @@ public class YouthCenterActivityMapper : IMapper<YouthCenterActivity, YouthCente
         {
             Id = entity.Id,
             ActivityName = entity.Activity?.NameAr ?? string.Empty,
-            YouthCenterName = entity.YouthCenter?.Name ?? string.Empty,
+            YouthCenterName = entity.YouthCenter?.NameAr ?? string.Empty,
             YouthCenterId = entity.YouthCenterId,
             ActivityId = entity.ActivityId,
             IsAvailable = entity.IsAvailable,

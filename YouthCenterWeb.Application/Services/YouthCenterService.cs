@@ -41,7 +41,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 ?? throw new NotFoundException("YouthCenter", id);
 
             // update only the fields that belong to the caller
-            entity.Name = dto.Name;
+            entity.NameAr = dto.NameAr;
             entity.Address = dto.Address;
             entity.City = dto.City;
             entity.Phone = dto.Phone;
