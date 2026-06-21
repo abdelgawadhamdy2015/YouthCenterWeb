@@ -69,7 +69,10 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
 
     // ── lookup for activity pricing ───────────────────────────────────────────
     public Task<YouthCenterActivity?> GetYouthCenterActivity(int youthCenterActivityId) =>
-        _context.YouthCenterActivities.FindAsync(youthCenterActivityId).AsTask();
+        _context.YouthCenterActivities
+            .Include(y => y.YouthCenter)
+            .Include(y => y.Activity)
+            .FirstOrDefaultAsync(y => y.Id == youthCenterActivityId);
 
     // ── write operations ──────────────────────────────────────────────────────
     public async Task AddAsync(Reservation entity) =>

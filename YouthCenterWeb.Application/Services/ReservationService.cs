@@ -46,6 +46,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             await repo.AddAsync(entity);
             await repo.SaveChangesAsync();
+            var youthCenterActivity = await repo.GetYouthCenterActivity(entity.YouthCenterActivityId);
+            entity.YouthCenterActivity = youthCenterActivity;
             return mapper.ToDto(entity);
         }
 
