@@ -76,11 +76,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         [Authorize(Policies.RequireAdmin)]
         public async Task<IActionResult> GetActivitiesByCenter()
         {
-            int? youthCenterId = User.GetYouthCenterId();
-
-            if (youthCenterId == null)
-                throw new BusinessException("youthCenterId is null");
-
+            int? youthCenterId = User.GetYouthCenterId() ?? throw new BusinessException("youthCenterId is null");
             var activities = await service.GetActivitiesByCenter(
                 youthCenterId.Value
             );

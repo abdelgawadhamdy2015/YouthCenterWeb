@@ -27,7 +27,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             var user = await userRepository.GetByIdAsync(
                 id,
                [ u => u.Reservations,
-
                ]
                 );
 
