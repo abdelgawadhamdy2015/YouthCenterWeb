@@ -2,9 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
-using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
-namespace YouthCenterWeb.Models
+namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 {
     public class User
     {

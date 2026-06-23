@@ -3,7 +3,7 @@ using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
-namespace YouthCenterWeb.YouthCenterWeb.Application.Mapper
+namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
 {
     public class ActivityMapper : IMapper<Activity, ActivityDto, CreateActivityDto>
     {

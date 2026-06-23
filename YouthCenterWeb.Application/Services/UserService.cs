@@ -1,9 +1,9 @@
 
 using YouthCenterWeb.Data.DTOs;
-using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services

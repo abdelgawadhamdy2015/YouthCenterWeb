@@ -57,7 +57,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         public async Task<IActionResult> CreateActivity(CreateActivityDto dto)
         {
             var created = await service.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetActivities), new { id = created.Id }, new BaseResponse<ActivityDto>
+            return CreatedAtAction(nameof(CreateActivity), new { id = created.Id }, new BaseResponse<ActivityDto>
             {
                 Result = 1,
                 Data = created,

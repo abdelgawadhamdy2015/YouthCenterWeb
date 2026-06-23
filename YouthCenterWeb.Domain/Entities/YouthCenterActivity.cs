@@ -1,4 +1,3 @@
-using YouthCenterWeb.Models;
 
 namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 {

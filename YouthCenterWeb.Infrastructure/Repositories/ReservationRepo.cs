@@ -1,11 +1,11 @@
 using System.Formats.Asn1;
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Application.Interfaces;
-using YouthCenterWeb.Data;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Extensions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
 
 namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 
@@ -178,15 +178,19 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             })
             .ToListAsync();
 
-        // Count bookings for each hour
         var hourCounts = reservations
-            .SelectMany(r =>
-                Enumerable.Range(r.StartHour, r.EndHour - r.StartHour)
-                          .Select(hour => hour))
-            .GroupBy(hour => hour)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Count());
+     .SelectMany(r =>
+     {
+         int start = r.StartHour;
+         int end = r.EndHour == 0 ? 24 : r.EndHour; // treat midnight as 24
+
+         return Enumerable.Range(start, end - start)
+                          .Select(hour => hour % 24); // wrap 24 back to 0
+     })
+     .GroupBy(hour => hour)
+     .ToDictionary(
+         g => g.Key,
+         g => g.Count());
 
         return Enumerable.Range(0, 24)
             .Select(hour => new PeakHourDto

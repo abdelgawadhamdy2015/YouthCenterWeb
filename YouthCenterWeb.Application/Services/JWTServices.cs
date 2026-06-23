@@ -3,8 +3,8 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using YouthCenterWeb.InterFaces;
-using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 namespace YouthCenterWeb.Services;
 
 public class JwtService(IConfiguration config) : IJwtService
