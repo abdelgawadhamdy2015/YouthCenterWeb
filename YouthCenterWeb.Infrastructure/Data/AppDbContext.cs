@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<YouthCenterActivity> YouthCenterActivities { get; set; }
     public DbSet<Reservation> Reservations { get; set; }
     public DbSet<Cup> Cups { get; set; }
+    public DbSet<CupGroup> CupGroups { get; set; }
     public DbSet<CupTeam> CupTeams { get; set; }
     public DbSet<CupMatch> CupMatches { get; set; }
 

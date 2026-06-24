@@ -1,21 +1,21 @@
+
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 
 namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 {
     /// <summary>
-    /// A single match inside a cup bracket.
+    /// A single match inside a cup.
     ///
-    /// All rounds are generated upfront when the cup fills.
-    /// Later rounds start with TeamAId / TeamBId = null —
-    /// they are filled automatically when earlier-round winners advance.
+    /// Group stage matches  → GroupId is set, Stage = GroupStage
+    /// Knockout matches     → GroupId is null, Stage = SemiFinal | Final etc.
     ///
-    /// Round numbering:
-    ///   1 = first round (e.g. quarter-finals in an 8-team cup)
-    ///   2 = semi-finals
-    ///   3 = final
+    /// Knockout slots are created with TeamAId/TeamBId = null.
+    /// They are filled automatically when group standings are finalised
+    /// or when a previous knockout match completes.
     ///
-    /// MatchNumber is 1-based position within the round.
-    /// Winners of MatchNumber N advance to ceil(N/2) in the next round.
+    /// Round + MatchNumber are used only for knockout bracket positioning:
+    ///   Round 1 = first knockout round (QF / SF depending on group count)
+    ///   Winner of MatchNumber N → advances to ceil(N/2) in Round+1
     /// </summary>
     public class CupMatch
     {
@@ -26,20 +26,29 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public int CupId { get; set; }
         public Cup Cup { get; set; } = null!;
 
-        /// <summary>Null until the previous round determines the team.</summary>
+        /// <summary>Set for GroupStage matches. Null for knockout matches.</summary>
+        public int? GroupId { get; set; }
+        public CupGroup? Group { get; set; }
+
         public int? TeamAId { get; set; }
         public CupTeam? TeamA { get; set; }
 
-        /// <summary>Null until the previous round determines the team.</summary>
         public int? TeamBId { get; set; }
         public CupTeam? TeamB { get; set; }
 
-        /// <summary>Null until the match is completed.</summary>
         public int? WinnerId { get; set; }
         public CupTeam? Winner { get; set; }
 
         // ── Match info ──────────────────────────────────────────────────────
 
+        public CupMatchStage Stage { get; set; } = CupMatchStage.GroupStage;
+
+        public CupMatchStatus Status { get; set; } = CupMatchStatus.Pending;
+
+        /// <summary>
+        /// Used for knockout positioning only.
+        /// For group matches Round = group match index (1, 2, 3…).
+        /// </summary>
         public int Round { get; set; }
 
         public int MatchNumber { get; set; }
@@ -49,8 +58,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public int? ScoreB { get; set; }
 
         public DateTime? ScheduledAt { get; set; }
-
-        public CupMatchStatus Status { get; set; } = CupMatchStatus.Pending;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

@@ -82,6 +82,11 @@ namespace YouthCenterWeb.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("GroupSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(4);
+
                     b.Property<int>("MaxTeams")
                         .HasColumnType("int");
 
@@ -100,6 +105,11 @@ namespace YouthCenterWeb.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("TeamsAdvancingPerGroup")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(2);
+
                     b.Property<int>("YouthCenterId")
                         .HasColumnType("int");
 
@@ -112,6 +122,38 @@ namespace YouthCenterWeb.Migrations
                     b.HasIndex("YouthCenterId");
 
                     b.ToTable("Cups", (string)null);
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("CupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GroupNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CupId", "GroupNumber")
+                        .IsUnique();
+
+                    b.ToTable("CupGroups", (string)null);
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupMatch", b =>
@@ -130,6 +172,9 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int>("CupId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("int");
+
                     b.Property<int>("MatchNumber")
                         .HasColumnType("int");
 
@@ -144,6 +189,10 @@ namespace YouthCenterWeb.Migrations
 
                     b.Property<int?>("ScoreB")
                         .HasColumnType("int");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -160,13 +209,15 @@ namespace YouthCenterWeb.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("GroupId");
+
                     b.HasIndex("TeamAId");
 
                     b.HasIndex("TeamBId");
 
                     b.HasIndex("WinnerId");
 
-                    b.HasIndex("CupId", "Round", "MatchNumber")
+                    b.HasIndex("CupId", "Round", "MatchNumber", "Stage")
                         .IsUnique();
 
                     b.ToTable("CupMatches", (string)null);
@@ -186,6 +237,34 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int>("CupId")
                         .HasColumnType("int");
 
+                    b.Property<int>("Draws")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("GoalsAgainst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("GoalsFor")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Losses")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("Points")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTime>("RegisteredAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -203,9 +282,16 @@ namespace YouthCenterWeb.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("Wins")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.HasKey("Id");
 
                     b.HasIndex("CaptainUserId");
+
+                    b.HasIndex("GroupId");
 
                     b.HasIndex("CupId", "CaptainUserId")
                         .IsUnique();
@@ -438,6 +524,17 @@ namespace YouthCenterWeb.Migrations
                     b.Navigation("YouthCenter");
                 });
 
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", b =>
+                {
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", "Cup")
+                        .WithMany("Groups")
+                        .HasForeignKey("CupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cup");
+                });
+
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupMatch", b =>
                 {
                     b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", "Cup")
@@ -445,6 +542,11 @@ namespace YouthCenterWeb.Migrations
                         .HasForeignKey("CupId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", "Group")
+                        .WithMany("Matches")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupTeam", "TeamA")
                         .WithMany("MatchesAsTeamA")
@@ -462,6 +564,8 @@ namespace YouthCenterWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Cup");
+
+                    b.Navigation("Group");
 
                     b.Navigation("TeamA");
 
@@ -484,9 +588,16 @@ namespace YouthCenterWeb.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", "Group")
+                        .WithMany("Teams")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("CaptainUser");
 
                     b.Navigation("Cup");
+
+                    b.Navigation("Group");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Reservation", b =>
@@ -548,6 +659,15 @@ namespace YouthCenterWeb.Migrations
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", b =>
+                {
+                    b.Navigation("Groups");
+
+                    b.Navigation("Matches");
+
+                    b.Navigation("Teams");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", b =>
                 {
                     b.Navigation("Matches");
 

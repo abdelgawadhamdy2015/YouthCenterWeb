@@ -3,9 +3,10 @@ using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 {
     /// <summary>
-    /// Represents a team's registration request for a cup.
-    /// Created when a user submits a join request.
-    /// Status is Pending until an admin accepts or rejects.
+    /// A team's registration for a cup.
+    /// Status flows: Pending → Accepted | Rejected
+    /// GroupId is null until the random group draw happens
+    /// (triggered when CurrentTeamCount == MaxTeams).
     /// </summary>
     public class CupTeam
     {
@@ -16,11 +17,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public int CupId { get; set; }
         public Cup Cup { get; set; } = null!;
 
-        /// <summary>
-        /// The user who submitted the join request and leads the team.
-        /// </summary>
         public int CaptainUserId { get; set; }
         public User CaptainUser { get; set; } = null!;
+
+        /// <summary>
+        /// Assigned after the random draw when the cup fills.
+        /// Null while status is Pending or Rejected.
+        /// </summary>
+        public int? GroupId { get; set; }
+        public CupGroup? Group { get; set; }
 
         // ── Team info ───────────────────────────────────────────────────────
 
@@ -30,20 +35,22 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 
         public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
 
-        /// <summary>
-        /// Set when an admin accepts or rejects. Null = not yet reviewed.
-        /// </summary>
+        /// <summary>Null until an admin accepts or rejects.</summary>
         public DateTime? ReviewedAt { get; set; }
+
+        // ── Standings (computed from group matches, cached here for perf) ──
+
+        public int Points { get; set; } = 0;    // Win=3, Draw=1, Loss=0
+        public int Wins { get; set; } = 0;
+        public int Draws { get; set; } = 0;
+        public int Losses { get; set; } = 0;
+        public int GoalsFor { get; set; } = 0;
+        public int GoalsAgainst { get; set; } = 0;
 
         // ── Navigation ──────────────────────────────────────────────────────
 
-        /// <summary>Matches where this team plays as Team A.</summary>
         public ICollection<CupMatch> MatchesAsTeamA { get; set; } = new List<CupMatch>();
-
-        /// <summary>Matches where this team plays as Team B.</summary>
         public ICollection<CupMatch> MatchesAsTeamB { get; set; } = new List<CupMatch>();
-
-        /// <summary>Matches this team won.</summary>
         public ICollection<CupMatch> MatchesWon { get; set; } = new List<CupMatch>();
     }
 }
