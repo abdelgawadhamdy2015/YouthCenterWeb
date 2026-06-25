@@ -1,114 +1,72 @@
-using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+using AutoMapper;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers;
 
-public class CupMapper : IMapper<Cup, CupDto, CreateCupDto>
+public class CupProfile : Profile
 {
-    public CupDto ToDto(Cup entity)
+    public CupProfile()
     {
-        return new CupDto
-        {
-            Id = entity.Id,
-            Name = entity.Name,
-            Description = entity.Description,
+        CreateMap<CreateCupDto, Cup>();
 
-            ActivityId = entity.ActivityId,
-            ActivityName = entity.Activity?.NameAr ?? string.Empty,
+        CreateMap<UpdateCupDto, Cup>();
 
-            YouthCenterId = entity.YouthCenterId,
-            YouthCenterName = entity.YouthCenter?.NameAr ?? string.Empty,
+        CreateMap<Cup, CupDto>()
+            .ForMember(
+                d => d.ActivityName,
+                o => o.MapFrom(s => s.Activity != null ? s.Activity.NameAr : string.Empty))
+            .ForMember(
+                d => d.YouthCenterName,
+                o => o.MapFrom(s => s.YouthCenter != null ? s.YouthCenter.NameAr : string.Empty))
+            .ForMember(
+                d => d.CreatedByAdminName,
+                o => o.MapFrom(s => s.CreatedByAdmin != null ? s.CreatedByAdmin.Name : string.Empty));
 
-            CreatedByAdminId = entity.CreatedByAdminId,
-            CreatedByAdminName = entity.CreatedByAdmin?.Name ?? string.Empty,
+        CreateMap<Cup, CupDetailDto>();
 
-            Format = entity.Format,
-            Status = entity.Status,
+        CreateMap<CupTeam, CupTeamDto>()
+            .ForMember(
+                d => d.CaptainName,
+                o => o.MapFrom(s => s.CaptainUser != null ? s.CaptainUser.Name : string.Empty))
+            .ForMember(
+                d => d.GroupName,
+                o => o.MapFrom(s => s.Group != null ? s.Group.Name : string.Empty))
+            .ForMember(
+                d => d.GoalDifference,
+                o => o.MapFrom(s => s.GoalsFor - s.GoalsAgainst))
+            .ForMember(
+                d => d.PlayedMatches,
+                o => o.MapFrom(s => s.Wins + s.Draws + s.Losses));
 
-            MaxTeams = entity.MaxTeams,
-            CurrentTeamCount = entity.CurrentTeamCount,
+        CreateMap<CupTeam, CupStandingDto>()
+            .ForMember(
+                d => d.TeamId,
+                o => o.MapFrom(s => s.Id))
+            .ForMember(
+                d => d.TeamName,
+                o => o.MapFrom(s => s.TeamName))
+            .ForMember(
+                d => d.GoalDifference,
+                o => o.MapFrom(s => s.GoalsFor - s.GoalsAgainst))
+            .ForMember(
+                d => d.PlayedMatches,
+                o => o.MapFrom(s => s.Wins + s.Draws + s.Losses));
 
-            EntryFee = entity.EntryFee,
+        CreateMap<CupGroup, CupGroupDto>();
 
-            RegistrationDeadline = entity.RegistrationDeadline,
-            StartDate = entity.StartDate,
-            CreatedAt = entity.CreatedAt,
-
-            TeamsCount = entity.Teams?.Count ?? 0,
-            MatchesCount = entity.Matches?.Count ?? 0
-        };
-    }
-
-    public Cup ToEntity(CupDto dto)
-    {
-        return new Cup
-        {
-            Id = dto.Id,
-            Name = dto.Name,
-            Description = dto.Description,
-
-            ActivityId = dto.ActivityId,
-            YouthCenterId = dto.YouthCenterId,
-            CreatedByAdminId = dto.CreatedByAdminId,
-
-            Format = dto.Format,
-            Status = dto.Status,
-
-            MaxTeams = dto.MaxTeams,
-            CurrentTeamCount = dto.CurrentTeamCount,
-
-            EntryFee = dto.EntryFee,
-
-            RegistrationDeadline = dto.RegistrationDeadline,
-            StartDate = dto.StartDate,
-            CreatedAt = dto.CreatedAt
-        };
-    }
-
-    public Cup CreateEntity(CreateCupDto createDto)
-    {
-        return new Cup
-        {
-            Name = createDto.Name,
-            Description = createDto.Description,
-
-            ActivityId = createDto.ActivityId,
-            YouthCenterId = createDto.YouthCenterId,
-            CreatedByAdminId = createDto.CreatedByAdminId,
-
-            Format = createDto.Format,
-            Status = CupStatus.Draft,
-
-            MaxTeams = createDto.MaxTeams,
-            CurrentTeamCount = 0,
-
-            EntryFee = createDto.EntryFee,
-
-            RegistrationDeadline = createDto.RegistrationDeadline,
-            StartDate = createDto.StartDate,
-
-            CreatedAt = DateTime.UtcNow
-        };
-    }
-
-    public Cup UpdateEntity(Cup entity, CupDto updateDto)
-    {
-        entity.Name = updateDto.Name;
-        entity.Description = updateDto.Description;
-
-        entity.ActivityId = updateDto.ActivityId;
-        entity.YouthCenterId = updateDto.YouthCenterId;
-
-        entity.Format = updateDto.Format;
-        entity.Status = updateDto.Status;
-
-        entity.MaxTeams = updateDto.MaxTeams;
-        entity.EntryFee = updateDto.EntryFee;
-
-        entity.RegistrationDeadline = updateDto.RegistrationDeadline;
-        entity.StartDate = updateDto.StartDate;
-
-        return entity;
+        CreateMap<CupMatch, CupMatchDto>()
+            .ForMember(
+                d => d.GroupName,
+                o => o.MapFrom(s => s.Group != null ? s.Group.Name : string.Empty))
+            .ForMember(
+                d => d.TeamAName,
+                o => o.MapFrom(s => s.TeamA != null ? s.TeamA.TeamName : string.Empty))
+            .ForMember(
+                d => d.TeamBName,
+                o => o.MapFrom(s => s.TeamB != null ? s.TeamB.TeamName : string.Empty))
+            .ForMember(
+                d => d.WinnerName,
+                o => o.MapFrom(s => s.Winner != null ? s.Winner.TeamName : string.Empty));
     }
 }

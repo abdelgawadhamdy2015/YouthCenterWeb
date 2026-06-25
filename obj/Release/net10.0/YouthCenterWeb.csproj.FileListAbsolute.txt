@@ -8,7 +8,6 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/YouthCenterWeb.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/YouthCenterWeb.pdb
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/AutoMapper.dll
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/AutoMapper.Extensions.Microsoft.DependencyInjection.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Azure.Core.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Azure.Identity.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/BCrypt.Net-Next.dll

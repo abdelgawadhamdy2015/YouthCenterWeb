@@ -90,10 +90,14 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int>("MaxTeams")
                         .HasColumnType("int");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("NameAr")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("RegistrationDeadline")
                         .HasColumnType("datetime2");

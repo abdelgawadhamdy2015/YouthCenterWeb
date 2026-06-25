@@ -6,7 +6,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
     {
         public int Id { get; set; }
 
-        public string Name { get; set; } = string.Empty;
+        public string NameAr { get; set; } = string.Empty;
+        public string NameEn { get; set; } = string.Empty;
 
         public string? Description { get; set; }
 

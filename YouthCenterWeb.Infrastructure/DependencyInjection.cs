@@ -6,17 +6,15 @@ using YouthCenterWeb.InterFaces;
 using YouthCenterWeb.Services;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
-using YouthCenterWeb.YouthCenterWeb.Application.Mappers;
 using YouthCenterWeb.YouthCenterWeb.Application.Services;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
+using YouthCenterWeb.YouthCenterWeb.Application.Mappers;
 
 namespace YouthCenterWeb.YouthCenterWeb.Infrastructure;
 
-using YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.Infrastructure.Data;
 using YouthCenterWeb.Domain.Entities;
-
 public static class DependencyInjection
 {
     public static IServiceCollection AddIDependencyInjection(
@@ -36,8 +34,9 @@ public static class DependencyInjection
         services.AddScoped<IMapper<User, UserDto, RegisterDto>, UserMapper>();
         services.AddScoped<IMapper<YouthCenter, YouthCenterDto, CreateYouthCenterDto>, YouthCenterMapper>();
         services.AddScoped<IMapper<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>, YouthCenterActivityMapper>();
-        services.AddScoped<IMapper<Cup, CupDto, CreateCupDto>, CupMapper>();
-
+        // Replace: services.AddAutoMapper(typeof(CupProfile));
+        // With this:
+        services.AddAutoMapper(cfg => { /* configuration if needed */ }, typeof(CupProfile).Assembly);
         // Repositories
         services.AddScoped<IAuthRepo, AuthRepo>();
         services.AddScoped<IReservationRepo, ReservationRepo>();

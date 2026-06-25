@@ -1,4 +1,11 @@
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/web.config
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/appsettings.Development.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/appsettings.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/appsettings.Development.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/appsettings.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.deps.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.runtimeconfig.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.staticwebassets.endpoints.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/YouthCenterWeb.staticwebassets.runtime.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/YouthCenterWeb.staticwebassets.endpoints.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/YouthCenterWeb
@@ -6,6 +13,7 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/YouthCenterWeb.runtimeconfig.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/YouthCenterWeb.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/YouthCenterWeb.pdb
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/AutoMapper.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/Azure.Core.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/Azure.Identity.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/BCrypt.Net-Next.dll
@@ -145,6 +153,7 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.csproj.CoreCompileInputs.cache
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.MvcApplicationPartsAssemblyInfo.cs
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.MvcApplicationPartsAssemblyInfo.cache
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.sourcelink.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/rjimswa.dswa.cache.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/rjsmrazor.dswa.cache.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/rjsmcshtml.dswa.cache.json
@@ -222,13 +231,3 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.pdb
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.genruntimeconfig.cache
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/ref/YouthCenterWeb.dll
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/appsettings.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/AutoMapper.dll
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/AutoMapper.Extensions.Microsoft.DependencyInjection.dll
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net10.0/YouthCenterWeb.sourcelink.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/web.config
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/appsettings.Development.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/appsettings.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.deps.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.runtimeconfig.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.staticwebassets.endpoints.json

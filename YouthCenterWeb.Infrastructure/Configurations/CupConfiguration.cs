@@ -14,7 +14,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
 
             builder.HasKey(c => c.Id);
 
-            builder.Property(c => c.Name)
+            builder.Property(c => c.NameAr)
                 .IsRequired()
                 .HasMaxLength(150);
 
