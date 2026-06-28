@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Extentions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
@@ -52,16 +53,16 @@ public class CupsController(ICupService cupService) : ControllerBase
         return ApiResult(data);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(policy: Policies.RequireAdmin)]
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreateCupDto dto)
     {
-        var adminId = GetCurrentUserId();
+        var (userId, Role, YouthCenterId) = GetAdminContext();
 
         var result = await _cupService.CreateAsync(
             dto,
-            adminId);
+            userId, Role, YouthCenterId);
 
         return CreatedAtAction(
             nameof(GetById),
@@ -69,22 +70,26 @@ public class CupsController(ICupService cupService) : ControllerBase
             result);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(policy: Policies.RequireAdmin)]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(
         int id,
         [FromBody] UpdateCupDto dto)
     {
-        var data = await _cupService.UpdateAsync(id, dto);
+        var (userId, Role, YouthCenterId) = GetAdminContext();
+
+        var data = await _cupService.UpdateAsync(id, dto, Role, YouthCenterId);
 
         return ApiResult(data);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(policy: Policies.RequireAdmin)]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        await _cupService.DeleteAsync(id);
+        var (userId, Role, YouthCenterId) = GetAdminContext();
+
+        await _cupService.DeleteAsync(id, Role, YouthCenterId);
 
         return NoContent();
     }
@@ -111,7 +116,7 @@ public class CupsController(ICupService cupService) : ControllerBase
 
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(policy: Policies.RequireAdmin)]
     [HttpGet("{cupId:int}/requests")]
     public async Task<IActionResult> GetPendingRequests(
         int cupId)
@@ -122,30 +127,30 @@ public class CupsController(ICupService cupService) : ControllerBase
         return ApiResult(data);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(policy: Policies.RequireAdmin)]
     [HttpPost("teams/{teamId:int}/accept")]
     public async Task<IActionResult> AcceptRequest(
         int teamId)
     {
-        var adminId = GetCurrentUserId();
+        var (userId, Role, YouthCenterId) = GetAdminContext();
 
         await _cupService.AcceptJoinRequestAsync(
             teamId,
-            adminId);
+             Role, YouthCenterId);
 
         return Ok();
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(policy: Policies.RequireAdmin)]
     [HttpPost("teams/{teamId:int}/reject")]
     public async Task<IActionResult> RejectRequest(
         int teamId)
     {
-        var adminId = GetCurrentUserId();
+        var (userId, Role, YouthCenterId) = GetAdminContext();
 
         await _cupService.RejectJoinRequestAsync(
             teamId,
-            adminId);
+            Role, YouthCenterId);
 
         return Ok();
     }
@@ -198,42 +203,46 @@ public class CupsController(ICupService cupService) : ControllerBase
         return ApiResult(data);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(policy: Policies.RequireAdmin)]
     [HttpPost("matches/{matchId:int}/result")]
     public async Task<IActionResult> EnterResult(
         int matchId,
         [FromBody] EnterMatchResultDto dto)
     {
-        var adminId = GetCurrentUserId();
+        var (userId, Role, YouthCenterId) = GetAdminContext();
 
         var data =
             await _cupService.EnterMatchResultAsync(
                 matchId,
                 dto,
-                adminId);
+                Role, YouthCenterId);
 
         return ApiResult(data);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(policy: Policies.RequireAdmin)]
     [HttpPut("matches/{matchId:int}/schedule")]
     public async Task<IActionResult> ScheduleMatch(
         int matchId,
         [FromBody] ScheduleMatchDto dto)
     {
-        var adminId = GetCurrentUserId();
+        var (userId, Role, YouthCenterId) = GetAdminContext();
 
         var data =
             await _cupService.ScheduleMatchAsync(
                 matchId,
                 dto.ScheduledAt,
-                adminId);
+                Role, YouthCenterId);
 
         return ApiResult(data);
     }
 
     #endregion
 
+
+    // ─────────────────────────────────────────────────────────────────────
+    // PRIVATE HELPERS
+    // ─────────────────────────────────────────────────────────────────────
     private int GetCurrentUserId()
     {
         return
@@ -241,8 +250,23 @@ public class CupsController(ICupService cupService) : ControllerBase
 
     }
 
+    private UserRole GetCurrentUserRole()
+    {
+        return
+            User.GetRole();
 
-    private IActionResult ApiResult<T>(T data, string messageAr = "", string messageEn = "")
+    }
+
+
+    private int? GetCurrentYouthCenter()
+    {
+        return
+            User.GetYouthCenterId();
+
+    }
+
+
+    private OkObjectResult ApiResult<T>(T data, string messageAr = "", string messageEn = "")
     {
         return Ok(new BaseResponse<T>
         {
@@ -260,4 +284,16 @@ public class CupsController(ICupService cupService) : ControllerBase
             }
         });
     }
+
+    private (int userId, UserRole Role, int YouthCenterId) GetAdminContext()
+    {
+        return (
+             GetCurrentUserId(),
+            GetCurrentUserRole(),
+            GetCurrentYouthCenter()
+                ?? throw new UnauthorizedAccessException(
+                    "You can only manage cups that belong to your youth center.")
+        );
+    }
 }
+

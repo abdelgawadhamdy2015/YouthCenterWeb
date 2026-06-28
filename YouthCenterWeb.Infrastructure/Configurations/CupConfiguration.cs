@@ -50,15 +50,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
                 .IsRequired()
                 .HasDefaultValueSql("GETUTCDATE()");
 
-            builder.HasOne(c => c.Activity)
+            builder.HasOne(c => c.YouthCenterActivity)
                 .WithMany()
-                .HasForeignKey(c => c.ActivityId)
+                .HasForeignKey(c => c.YouthCenterActivityId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(c => c.YouthCenter)
-                .WithMany()
-                .HasForeignKey(c => c.YouthCenterId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(c => c.CreatedByAdmin)
                 .WithMany()

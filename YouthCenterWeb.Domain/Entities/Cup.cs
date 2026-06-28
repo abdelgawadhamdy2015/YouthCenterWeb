@@ -13,11 +13,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 
         // ── Foreign keys ────────────────────────────────────────────────────
 
-        public int ActivityId { get; set; }
-        public Activity Activity { get; set; } = null!;
+        public int YouthCenterActivityId { get; set; }
+        public YouthCenterActivity YouthCenterActivity { get; set; } = null!;
 
-        public int YouthCenterId { get; set; }
-        public YouthCenter YouthCenter { get; set; } = null!;
+
 
         public int CreatedByAdminId { get; set; }
         public User CreatedByAdmin { get; set; } = null!;

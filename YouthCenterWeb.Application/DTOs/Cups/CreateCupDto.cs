@@ -10,9 +10,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
 
         public string? Description { get; set; }
 
-        public int ActivityId { get; set; }
-
-        public int YouthCenterId { get; set; }
+        public int YouthCenterActivityId { get; set; }
 
         public CupFormat Format { get; set; }
 

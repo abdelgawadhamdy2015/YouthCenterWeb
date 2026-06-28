@@ -21,8 +21,7 @@ public class CupRepo(AppDbContext context) : ICupRepo
     public async Task<Cup?> GetByIdWithDetailsAsync(int id)
     {
         return await _context.Cups
-            .Include(c => c.Activity)
-            .Include(c => c.YouthCenter)
+            .Include(c => c.YouthCenterActivity)
             .Include(c => c.CreatedByAdmin)
             .Include(c => c.Groups)
                 .ThenInclude(g => g.Teams)
@@ -44,8 +43,7 @@ public class CupRepo(AppDbContext context) : ICupRepo
     public async Task<IEnumerable<Cup>> GetAllAsync()
     {
         return await _context.Cups
-            .Include(c => c.Activity)
-            .Include(c => c.YouthCenter)
+            .Include(c => c.YouthCenterActivity)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
     }
@@ -53,8 +51,7 @@ public class CupRepo(AppDbContext context) : ICupRepo
     public async Task<IEnumerable<Cup>> GetByStatusAsync(CupStatus status)
     {
         return await _context.Cups
-            .Include(c => c.Activity)
-            .Include(c => c.YouthCenter)
+            .Include(c => c.YouthCenterActivity)
             .Where(c => c.Status == status)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
@@ -63,8 +60,8 @@ public class CupRepo(AppDbContext context) : ICupRepo
     public async Task<IEnumerable<Cup>> GetByYouthCenterAsync(int youthCenterId)
     {
         return await _context.Cups
-            .Include(c => c.Activity)
-            .Where(c => c.YouthCenterId == youthCenterId)
+            .Include(c => c.YouthCenterActivity)
+            .Where(c => c.YouthCenterActivity.YouthCenterId == youthCenterId)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
     }
@@ -72,9 +69,8 @@ public class CupRepo(AppDbContext context) : ICupRepo
     public async Task<IEnumerable<Cup>> GetByActivityAsync(int activityId)
     {
         return await _context.Cups
-            .Include(c => c.Activity)
-            .Include(c => c.YouthCenter)
-            .Where(c => c.ActivityId == activityId)
+            .Include(c => c.YouthCenterActivity)
+            .Where(c => c.YouthCenterActivity.ActivityId == activityId)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
     }

@@ -15,9 +15,17 @@ public interface ICupService
     Task<IEnumerable<CupDto>> GetByStatusAsync(CupStatus status);
     Task<IEnumerable<CupDto>> GetByYouthCenterAsync(int youthCenterId);
     Task<IEnumerable<CupDto>> GetByActivityAsync(int activityId);
-    Task<CupDto> CreateAsync(CreateCupDto dto, int adminId);
-    Task<CupDto> UpdateAsync(int cupId, UpdateCupDto dto);
-    Task DeleteAsync(int cupId);
+    Task<CupDto> CreateAsync(CreateCupDto dto,
+            int adminId,
+            UserRole callerRole,
+            int callerYouthCenterId);
+    Task<CupDto> UpdateAsync(int cupId,
+            UpdateCupDto dto,
+            UserRole callerRole,
+            int callerYouthCenterId);
+    Task DeleteAsync(int cupId,
+            UserRole callerRole,
+            int callerYouthCenterId);
 
     // ─── Join Requests ────────────────────────────────────────────────────────
 
@@ -45,12 +53,16 @@ public interface ICupService
     /// - Increments Cup.CurrentTeamCount
     /// - If cup is now full: triggers group draw + group match generation
     /// </summary>
-    Task AcceptJoinRequestAsync(int teamId, int adminId);
+    Task AcceptJoinRequestAsync(int teamId,
+            UserRole callerRole,
+            int callerYouthCenterId);
 
     /// <summary>
     /// Admin rejects a join request.
     /// </summary>
-    Task RejectJoinRequestAsync(int teamId, int adminId);
+    Task RejectJoinRequestAsync(int teamId,
+            UserRole callerRole,
+            int callerYouthCenterId);
 
     // ─── Group Stage ──────────────────────────────────────────────────────────
 
@@ -80,11 +92,17 @@ public interface ICupService
     /// - If group stage: checks if all group matches done → triggers knockout seeding
     /// - If knockout: advances winner to next bracket slot
     /// </summary>
-    Task<CupMatchDto> EnterMatchResultAsync(int matchId, EnterMatchResultDto dto, int adminId);
+    Task<CupMatchDto> EnterMatchResultAsync(int matchId,
+            EnterMatchResultDto dto,
+            UserRole callerRole,
+            int callerYouthCenterId);
 
     /// <summary>
     /// Updates the scheduled date/time of a match.
     /// Admin only.
     /// </summary>
-    Task<CupMatchDto> ScheduleMatchAsync(int matchId, DateTime scheduledAt, int adminId);
+    Task<CupMatchDto> ScheduleMatchAsync(int matchId,
+            DateTime scheduledAt,
+            UserRole callerRole,
+            int callerYouthCenterId);
 }

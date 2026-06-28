@@ -55,9 +55,6 @@ namespace YouthCenterWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ActivityId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -114,16 +111,14 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(2);
 
-                    b.Property<int>("YouthCenterId")
+                    b.Property<int>("YouthCenterActivityId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ActivityId");
-
                     b.HasIndex("CreatedByAdminId");
 
-                    b.HasIndex("YouthCenterId");
+                    b.HasIndex("YouthCenterActivityId");
 
                     b.ToTable("Cups", (string)null);
                 });
@@ -503,29 +498,21 @@ namespace YouthCenterWeb.Migrations
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", b =>
                 {
-                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Activity", "Activity")
-                        .WithMany()
-                        .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", "CreatedByAdmin")
                         .WithMany()
                         .HasForeignKey("CreatedByAdminId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenter", "YouthCenter")
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", "YouthCenterActivity")
                         .WithMany()
-                        .HasForeignKey("YouthCenterId")
+                        .HasForeignKey("YouthCenterActivityId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Activity");
-
                     b.Navigation("CreatedByAdmin");
 
-                    b.Navigation("YouthCenter");
+                    b.Navigation("YouthCenterActivity");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", b =>

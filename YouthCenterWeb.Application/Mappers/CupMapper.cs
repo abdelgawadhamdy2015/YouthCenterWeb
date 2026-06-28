@@ -15,10 +15,10 @@ public class CupProfile : Profile
         CreateMap<Cup, CupDto>()
             .ForMember(
                 d => d.ActivityName,
-                o => o.MapFrom(s => s.Activity != null ? s.Activity.NameAr : string.Empty))
+                o => o.MapFrom(s => s.YouthCenterActivity.Activity != null ? s.YouthCenterActivity.Activity.NameAr : string.Empty))
             .ForMember(
                 d => d.YouthCenterName,
-                o => o.MapFrom(s => s.YouthCenter != null ? s.YouthCenter.NameAr : string.Empty))
+                o => o.MapFrom(s => s.YouthCenterActivity.YouthCenter != null ? s.YouthCenterActivity.YouthCenter.NameAr : string.Empty))
             .ForMember(
                 d => d.CreatedByAdminName,
                 o => o.MapFrom(s => s.CreatedByAdmin != null ? s.CreatedByAdmin.Name : string.Empty));
