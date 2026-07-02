@@ -14,14 +14,26 @@ public class CupProfile : Profile
 
         CreateMap<Cup, CupDto>()
             .ForMember(
-                d => d.ActivityName,
+                d => d.ActivityNameAr,
                 o => o.MapFrom(s => s.YouthCenterActivity.Activity != null ? s.YouthCenterActivity.Activity.NameAr : string.Empty))
+                  .ForMember(
+                d => d.ActivityNameEn,
+                o => o.MapFrom(s => s.YouthCenterActivity.Activity != null ? s.YouthCenterActivity.Activity.NameEn : string.Empty))
             .ForMember(
-                d => d.YouthCenterName,
+                d => d.YouthCenterNameAr,
                 o => o.MapFrom(s => s.YouthCenterActivity.YouthCenter != null ? s.YouthCenterActivity.YouthCenter.NameAr : string.Empty))
+                .ForMember(
+                d => d.YouthCenterNameEn,
+                o => o.MapFrom(s => s.YouthCenterActivity.YouthCenter != null ? s.YouthCenterActivity.YouthCenter.NameEn : string.Empty))
             .ForMember(
                 d => d.CreatedByAdminName,
-                o => o.MapFrom(s => s.CreatedByAdmin != null ? s.CreatedByAdmin.Name : string.Empty));
+                o => o.MapFrom(s => s.CreatedByAdmin != null ? s.CreatedByAdmin.Name : string.Empty))
+            .ForMember(
+                        d => d.YouthCenterLatitude,
+                        o => o.MapFrom(s => s.YouthCenterActivity.YouthCenter != null ? s.YouthCenterActivity.YouthCenter.Latitude : 0))
+            .ForMember(
+                        d => d.YouthCenterLongitude,
+                        o => o.MapFrom(s => s.YouthCenterActivity.YouthCenter != null ? s.YouthCenterActivity.YouthCenter.Longitude : 0));
 
         CreateMap<Cup, CupDetailDto>();
 

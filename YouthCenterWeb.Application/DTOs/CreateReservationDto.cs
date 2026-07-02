@@ -23,6 +23,8 @@ namespace YouthCenterWeb.Data.DTOs
         public int? UserId { get; set; }
 
         public decimal? TotalPrice { get; set; }
+        public string? ManualPaymentNote { get; set; } // مثلاً: "Paid cash at front desk"
+
 
     }
 }

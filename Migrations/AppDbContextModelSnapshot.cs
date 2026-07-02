@@ -177,6 +177,12 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int>("MatchNumber")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PenaltyScoreA")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PenaltyScoreB")
+                        .HasColumnType("int");
+
                     b.Property<int>("Round")
                         .HasColumnType("int");
 
@@ -312,6 +318,15 @@ namespace YouthCenterWeb.Migrations
                     b.Property<TimeOnly>("EndTime")
                         .HasColumnType("time");
 
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PaymentLockExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentTransactionId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
 
@@ -330,7 +345,8 @@ namespace YouthCenterWeb.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("TotalPrice")
                         .HasPrecision(18, 2)
@@ -349,9 +365,11 @@ namespace YouthCenterWeb.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("YouthCenterActivityId");
-
                     b.HasIndex("YouthCenterId");
+
+                    b.HasIndex("YouthCenterActivityId", "Date", "StartTime", "EndTime")
+                        .IsUnique()
+                        .HasFilter("[Status] IN ('AwaitingPayment', 'Confirmed')");
 
                     b.ToTable("Reservations", (string)null);
                 });

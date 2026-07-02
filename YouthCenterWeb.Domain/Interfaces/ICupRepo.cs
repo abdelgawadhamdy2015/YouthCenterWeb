@@ -129,7 +129,9 @@ public interface ICupRepo
         int matchId,
         int scoreA,
         int scoreB,
-        int? winnerId);
+        int? penaltyScoreA = null,
+        int? penaltyScoreB = null,
+        int? winnerId = null);
 
     /// <summary>
     /// Advances the winner into the next knockout slot.
@@ -137,6 +139,7 @@ public interface ICupRepo
     /// and sets TeamAId or TeamBId depending on whether MatchNumber is odd/even.
     /// </summary>
     Task AdvanceWinnerToNextRoundAsync(int cupId, int currentRound, int currentMatchNumber, int winnerTeamId);
+    Task AssignThirdPlaceParticipantAsync(int cupId, int teamId);
 
     /// <summary>
     /// Seeds knockout matches after group stage ends.

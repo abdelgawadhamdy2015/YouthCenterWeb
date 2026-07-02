@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
@@ -11,6 +12,10 @@ public class CupRepo(AppDbContext context) : ICupRepo
     private readonly AppDbContext _context = context;
 
     // ─── Cup CRUD ─────────────────────────────────────────────────────────────
+    private IQueryable<Cup> WithRelation() => _context.Cups
+            .Include(c => c.YouthCenterActivity)
+            .ThenInclude(y => y.Activity).Include(c => c.YouthCenterActivity).ThenInclude(y => y.YouthCenter)
+            .Include(c => c.CreatedByAdmin);
 
     public async Task<Cup?> GetByIdAsync(int id)
     {
@@ -42,16 +47,14 @@ public class CupRepo(AppDbContext context) : ICupRepo
 
     public async Task<IEnumerable<Cup>> GetAllAsync()
     {
-        return await _context.Cups
-            .Include(c => c.YouthCenterActivity)
+        return await WithRelation()
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
     }
 
     public async Task<IEnumerable<Cup>> GetByStatusAsync(CupStatus status)
     {
-        return await _context.Cups
-            .Include(c => c.YouthCenterActivity)
+        return await WithRelation()
             .Where(c => c.Status == status)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
@@ -59,8 +62,7 @@ public class CupRepo(AppDbContext context) : ICupRepo
 
     public async Task<IEnumerable<Cup>> GetByYouthCenterAsync(int youthCenterId)
     {
-        return await _context.Cups
-            .Include(c => c.YouthCenterActivity)
+        return await WithRelation()
             .Where(c => c.YouthCenterActivity.YouthCenterId == youthCenterId)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
@@ -68,8 +70,7 @@ public class CupRepo(AppDbContext context) : ICupRepo
 
     public async Task<IEnumerable<Cup>> GetByActivityAsync(int activityId)
     {
-        return await _context.Cups
-            .Include(c => c.YouthCenterActivity)
+        return await WithRelation()
             .Where(c => c.YouthCenterActivity.ActivityId == activityId)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
@@ -343,6 +344,8 @@ public class CupRepo(AppDbContext context) : ICupRepo
      int matchId,
      int scoreA,
      int scoreB,
+     int? penaltyScoreA,
+     int? penaltyScoreB,
      int? winnerId)
     {
         var match = await _context.CupMatches
@@ -352,6 +355,8 @@ public class CupRepo(AppDbContext context) : ICupRepo
         match.ScoreA = scoreA;
         match.ScoreB = scoreB;
         match.WinnerId = winnerId;
+        match.PenaltyScoreA = penaltyScoreA;
+        match.PenaltyScoreB = penaltyScoreB;
         match.Status = CupMatchStatus.Completed;
 
         await _context.SaveChangesAsync();
@@ -385,19 +390,19 @@ public class CupRepo(AppDbContext context) : ICupRepo
 
         await _context.SaveChangesAsync();
     }
-
     public async Task SeedKnockoutMatchesAsync(int cupId)
     {
-        // Load groups ordered by GroupNumber, teams ordered by Points desc
-        // then GoalDifference desc for tiebreaking
         var groups = await _context.CupGroups
             .Include(g => g.Teams)
             .Where(g => g.CupId == cupId)
             .OrderBy(g => g.GroupNumber)
             .ToListAsync();
 
-        // Build seeding list: A1, B1, C1… then A2, B2, C2…
-        // Cross-seeding: A1 vs B2, B1 vs A2 to avoid same-group rematches
+        var cup = await _context.Cups.FirstOrDefaultAsync(c => c.Id == cupId)
+            ?? throw new NotFoundException(
+                messageAr: "لم يتم العثور على البطولة المطلوبة.",
+                messageEn: "Cup not found.");
+
         var firstPlaces = groups
             .Select(g => g.Teams
                 .OrderByDescending(t => t.Points)
@@ -413,18 +418,32 @@ public class CupRepo(AppDbContext context) : ICupRepo
                 .First())
             .ToList();
 
-        // Load the knockout match slots created earlier (TeamA/B still null)
-        var knockoutMatches = await _context.CupMatches
-            .Where(m => m.CupId == cupId && m.GroupId == null)
+        // Determine which stage is the FIRST knockout round for this bracket
+        // size — must match the same logic used in CreateKnockoutBracket.
+        int knockoutTeams = groups.Count * cup.TeamsAdvancingPerGroup;
+        var firstRoundStage = knockoutTeams switch
+        {
+            2 => CupMatchStage.FinalMatch,
+            4 => CupMatchStage.SemiFinal,
+            8 => CupMatchStage.QuarterFinal,
+            16 => CupMatchStage.RoundOf16,
+            _ => CupMatchStage.RoundOf32
+        };
+
+        // Only pull the first-round placeholder slots — this excludes
+        // ThirdPlace and FinalMatch, which must stay empty until winners
+        // are advanced into them later.
+        var firstRoundMatches = await _context.CupMatches
+            .Where(m => m.CupId == cupId
+                     && m.GroupId == null
+                     && m.Stage == firstRoundStage)
             .OrderBy(m => m.MatchNumber)
             .ToListAsync();
 
-        // Pair: match 1 → A1 vs B2, match 2 → B1 vs A2,
-        //       match 3 → C1 vs D2, match 4 → D1 vs C2, etc.
-        for (int i = 0; i < firstPlaces.Count && i * 2 + 1 < knockoutMatches.Count; i++)
+        for (int i = 0; i < firstPlaces.Count && i * 2 + 1 < firstRoundMatches.Count; i++)
         {
-            var matchA = knockoutMatches[i * 2];
-            var matchB = knockoutMatches[i * 2 + 1];
+            var matchA = firstRoundMatches[i * 2];
+            var matchB = firstRoundMatches[i * 2 + 1];
 
             matchA.TeamAId = firstPlaces[i].Id;
             matchA.TeamBId = secondPlaces[(i + 1) % secondPlaces.Count].Id;
@@ -432,6 +451,30 @@ public class CupRepo(AppDbContext context) : ICupRepo
             matchB.TeamAId = firstPlaces[(i + 1) % firstPlaces.Count].Id;
             matchB.TeamBId = secondPlaces[i].Id;
         }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task AssignThirdPlaceParticipantAsync(int cupId, int teamId)
+    {
+        var thirdPlaceMatch = await _context.CupMatches
+            .FirstOrDefaultAsync(m =>
+                m.CupId == cupId &&
+                m.Stage == CupMatchStage.ThirdPlace);
+
+        if (thirdPlaceMatch == null)
+            throw new NotFoundException(
+                messageAr: "لم يتم العثور على مباراة تحديد المركز الثالث لهذه البطولة.",
+                messageEn: "Third-place match was not found for this cup.");
+
+        if (thirdPlaceMatch.TeamAId == null)
+            thirdPlaceMatch.TeamAId = teamId;
+        else if (thirdPlaceMatch.TeamBId == null)
+            thirdPlaceMatch.TeamBId = teamId;
+        else
+            throw new BusinessException(
+                messageAr: "مباراة تحديد المركز الثالث ممتلئة بالفعل.",
+                messageEn: "The third-place match is already full.");
 
         await _context.SaveChangesAsync();
     }

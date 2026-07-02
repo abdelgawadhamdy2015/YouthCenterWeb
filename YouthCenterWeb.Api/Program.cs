@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.API.Middleware;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Services;
@@ -149,6 +150,7 @@ if (!app.Environment.IsDevelopment())
 
 #region 🔹 Middleware Pipeline
 app.UseHttpsRedirection();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseRouting();
 

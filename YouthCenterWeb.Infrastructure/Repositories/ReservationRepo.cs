@@ -90,6 +90,36 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
         _context.SaveChangesAsync();
 
 
+    public async Task<bool> HasActiveOverlapAsync(int activityId, DateTime date, TimeOnly start, TimeOnly end)
+    {
+        var now = DateTime.UtcNow;
+
+        return await _context.Reservations.AnyAsync(x =>
+            x.YouthCenterActivityId == activityId &&
+            x.Date.Date == date.Date &&
+            x.StartTime < end && x.EndTime > start &&
+            (
+                x.Status == ReservationStatus.Confirmed ||
+                (x.Status == ReservationStatus.AwaitingPayment && x.PaymentLockExpiresAt > now)
+            ));
+    }
+
+    // Called by a background job every ~1 min, and also opportunistically before any lock attempt
+    public async Task ExpireStaleLocksAsync()
+    {
+        var now = DateTime.UtcNow;
+        var stale = await _context.Reservations
+            .Where(x => x.Status == ReservationStatus.AwaitingPayment && x.PaymentLockExpiresAt <= now)
+            .ToListAsync();
+
+        foreach (var r in stale)
+            r.Status = ReservationStatus.Cancelled; // or remove entirely, your call
+
+        if (stale.Count > 0)
+            await _context.SaveChangesAsync();
+    }
+
+
     public async Task<int> GetCount(FilteredReservationDto? dto)
     {
         var query = WithRelations().AsQueryable();
@@ -171,12 +201,10 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
         }
 
         var reservations = await query
-            .Select(x => new
-            {
-                StartHour = x.StartTime.Hour,
-                EndHour = x.EndTime.Hour
-            })
-            .ToListAsync();
+      .Where(x => x.Status == ReservationStatus.Confirmed ||
+                 (x.Status == ReservationStatus.AwaitingPayment && x.PaymentLockExpiresAt > DateTime.UtcNow))
+      .Select(x => new { StartHour = x.StartTime.Hour, EndHour = x.EndTime.Hour })
+      .ToListAsync();
 
         var hourCounts = reservations
      .SelectMany(r =>

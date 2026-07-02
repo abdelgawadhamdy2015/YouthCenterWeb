@@ -26,8 +26,9 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
             .IsRequired();
 
         builder.Property(r => r.Status)
-            .IsRequired()
-            .HasConversion<string>();
+      .IsRequired()
+      .HasConversion<string>()
+      .HasMaxLength(50);
 
         builder.Property(r => r.SpecialRequest)
             .HasMaxLength(500);
@@ -41,5 +42,9 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
             .WithMany(yca => yca.Reservations)
             .HasForeignKey(r => r.YouthCenterActivityId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(r => new { r.YouthCenterActivityId, r.Date, r.StartTime, r.EndTime })
+     .HasFilter("[Status] IN ('AwaitingPayment', 'Confirmed')")
+     .IsUnique();
     }
 }

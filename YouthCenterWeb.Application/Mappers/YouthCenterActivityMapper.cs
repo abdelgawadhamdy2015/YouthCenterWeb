@@ -22,8 +22,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
             return new YouthCenterActivityDto
             {
                 Id = entity.Id,
-                ActivityName = entity.Activity?.NameAr ?? string.Empty,
-                YouthCenterName = entity.YouthCenter?.NameAr ?? string.Empty,
+                ActivityNameAr = entity.Activity?.NameAr ?? string.Empty,
+                ActivityNameEn = entity.Activity?.NameEn ?? string.Empty,
+                YouthCenterNameAr = entity.YouthCenter?.NameAr ?? string.Empty,
+                YouthCenterNameEn = entity.YouthCenter?.NameEn ?? string.Empty,
                 YouthCenterId = entity.YouthCenterId,
                 ActivityId = entity.ActivityId,
                 IsAvailable = entity.IsAvailable,

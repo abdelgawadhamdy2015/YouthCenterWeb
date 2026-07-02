@@ -38,10 +38,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Common.Enums
     public enum CupMatchStage
     {
         GroupStage = 1,
-        RoundOf16 = 2,
-        QuarterFinal = 3,
-        SemiFinal = 4,
-        ThirdPlace = 5,
-        Final = 6
+        RoundOf32 = 2,
+        RoundOf16 = 3,
+        QuarterFinal = 4,
+        SemiFinal = 5,
+        ThirdPlace = 6,
+        FinalMatch = 7
     }
 }

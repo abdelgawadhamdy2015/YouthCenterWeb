@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Application.Common.Constants;
-using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
@@ -21,7 +20,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 
 
         [HttpGet]
-        [Authorize(Policies.RequireAuthenticated)]
         public async Task<IActionResult> GetActivities()
         {
 

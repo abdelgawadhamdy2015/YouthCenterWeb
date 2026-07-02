@@ -6,6 +6,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
 {
     public interface IReservationRepo
     {
+        Task<bool> HasActiveOverlapAsync(int activityId, DateTime date, TimeOnly start, TimeOnly end);
+        Task ExpireStaleLocksAsync();
         Task<List<Reservation>> GetFiltersReservationsAsync(FilteredReservationDto? dto);
         Task<Reservation?> GetByIdWithRelationsAsync(int id);
         Task<int> GetCount(FilteredReservationDto? dto);

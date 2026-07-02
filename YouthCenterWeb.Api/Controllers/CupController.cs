@@ -4,6 +4,7 @@ using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Extentions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
@@ -21,13 +22,18 @@ public class CupsController(ICupService cupService) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        IEnumerable<CupDto> data = await _cupService.GetAllAsync();
+        if (GetCurrentUserRole() == UserRole.Admin)
+        {
+            return await GetByYouthCenter(youthCenterId: (int)GetCurrentYouthCenter()!);
+        }
+        var data = await _cupService.GetAllAsync();
         return ApiResult(data);
     }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
+
         var data = await _cupService.GetByIdWithDetailsAsync(id);
         return ApiResult(data);
     }
@@ -55,30 +61,22 @@ public class CupsController(ICupService cupService) : ControllerBase
 
     [Authorize(policy: Policies.RequireAdmin)]
     [HttpPost]
-    public async Task<IActionResult> Create(
-        [FromBody] CreateCupDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateCupDto dto)
     {
-        var (userId, Role, YouthCenterId) = GetAdminContext();
+        var (userId, role, youthCenterId) = GetAdminContext();
 
-        var result = await _cupService.CreateAsync(
-            dto,
-            userId, Role, YouthCenterId);
+        var result = await _cupService.CreateAsync(dto, userId, role, youthCenterId);
 
-        return CreatedAtAction(
-            nameof(GetById),
-            new { id = result.Id },
-            result);
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
     [Authorize(policy: Policies.RequireAdmin)]
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(
-        int id,
-        [FromBody] UpdateCupDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateCupDto dto)
     {
-        var (userId, Role, YouthCenterId) = GetAdminContext();
+        var (_, role, youthCenterId) = GetAdminContext();
 
-        var data = await _cupService.UpdateAsync(id, dto, Role, YouthCenterId);
+        var data = await _cupService.UpdateAsync(id, dto, role, youthCenterId);
 
         return ApiResult(data);
     }
@@ -87,9 +85,9 @@ public class CupsController(ICupService cupService) : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var (userId, Role, YouthCenterId) = GetAdminContext();
+        var (_, role, youthCenterId) = GetAdminContext();
 
-        await _cupService.DeleteAsync(id, Role, YouthCenterId);
+        await _cupService.DeleteAsync(id, role, youthCenterId);
 
         return NoContent();
     }
@@ -100,68 +98,53 @@ public class CupsController(ICupService cupService) : ControllerBase
 
     [Authorize]
     [HttpPost("{cupId:int}/join")]
-    public async Task<IActionResult> JoinCup(
-        int cupId,
-        [FromBody] JoinCupRequestDto dto)
+    public async Task<IActionResult> JoinCup(int cupId, [FromBody] JoinCupRequestDto dto)
     {
         var userId = GetCurrentUserId();
 
-        var data =
-            await _cupService.SubmitJoinRequestAsync(
-                cupId,
-                userId,
-                dto.TeamName);
+        var data = await _cupService.SubmitJoinRequestAsync(cupId, userId, dto.TeamName);
 
         return ApiResult(data);
-
     }
 
     [Authorize(policy: Policies.RequireAdmin)]
     [HttpGet("{cupId:int}/requests")]
-    public async Task<IActionResult> GetPendingRequests(
-        int cupId)
+    public async Task<IActionResult> GetPendingRequests(int cupId)
     {
-        var data =
-            await _cupService.GetPendingRequestsAsync(cupId);
-
+        var data = await _cupService.GetPendingRequestsAsync(cupId);
         return ApiResult(data);
     }
 
     [Authorize(policy: Policies.RequireAdmin)]
     [HttpPost("teams/{teamId:int}/accept")]
-    public async Task<IActionResult> AcceptRequest(
-        int teamId)
+    public async Task<IActionResult> AcceptRequest(int teamId)
     {
-        var (userId, Role, YouthCenterId) = GetAdminContext();
+        var (_, role, youthCenterId) = GetAdminContext();
 
-        await _cupService.AcceptJoinRequestAsync(
-            teamId,
-             Role, YouthCenterId);
+        await _cupService.AcceptJoinRequestAsync(teamId, role, youthCenterId);
 
-        return Ok();
+        return Ok(ApiResultRaw(
+            messageAr: "تم قبول طلب الانضمام بنجاح.",
+            messageEn: "Join request accepted successfully."));
     }
 
     [Authorize(policy: Policies.RequireAdmin)]
     [HttpPost("teams/{teamId:int}/reject")]
-    public async Task<IActionResult> RejectRequest(
-        int teamId)
+    public async Task<IActionResult> RejectRequest(int teamId)
     {
-        var (userId, Role, YouthCenterId) = GetAdminContext();
+        var (_, role, youthCenterId) = GetAdminContext();
 
-        await _cupService.RejectJoinRequestAsync(
-            teamId,
-            Role, YouthCenterId);
+        await _cupService.RejectJoinRequestAsync(teamId, role, youthCenterId);
 
-        return Ok();
+        return Ok(ApiResultRaw(
+            messageAr: "تم رفض طلب الانضمام.",
+            messageEn: "Join request rejected."));
     }
 
     [HttpGet("{cupId:int}/teams")]
-    public async Task<IActionResult> GetTeams(
-        int cupId)
+    public async Task<IActionResult> GetTeams(int cupId)
     {
-        var data =
-            await _cupService.GetAllTeamsAsync(cupId);
-
+        var data = await _cupService.GetAllTeamsAsync(cupId);
         return ApiResult(data);
     }
 
@@ -170,22 +153,16 @@ public class CupsController(ICupService cupService) : ControllerBase
     #region Groups
 
     [HttpGet("{cupId:int}/groups")]
-    public async Task<IActionResult> GetGroups(
-        int cupId)
+    public async Task<IActionResult> GetGroups(int cupId)
     {
-        var data =
-            await _cupService.GetGroupsAsync(cupId);
-
+        var data = await _cupService.GetGroupsAsync(cupId);
         return ApiResult(data);
     }
 
     [HttpGet("groups/{groupId:int}/standings")]
-    public async Task<IActionResult> GetStandings(
-        int groupId)
+    public async Task<IActionResult> GetStandings(int groupId)
     {
-        var data =
-            await _cupService.GetGroupStandingsAsync(groupId);
-
+        var data = await _cupService.GetGroupStandingsAsync(groupId);
         return ApiResult(data);
     }
 
@@ -194,78 +171,64 @@ public class CupsController(ICupService cupService) : ControllerBase
     #region Matches
 
     [HttpGet("{cupId:int}/bracket")]
-    public async Task<IActionResult> GetBracket(
-        int cupId)
+    public async Task<IActionResult> GetBracket(int cupId)
     {
-        var data =
-            await _cupService.GetBracketAsync(cupId);
-
+        var data = await _cupService.GetBracketAsync(cupId);
         return ApiResult(data);
     }
 
     [Authorize(policy: Policies.RequireAdmin)]
     [HttpPost("matches/{matchId:int}/result")]
-    public async Task<IActionResult> EnterResult(
-        int matchId,
-        [FromBody] EnterMatchResultDto dto)
+    public async Task<IActionResult> EnterResult(int matchId, [FromBody] EnterMatchResultDto dto)
     {
-        var (userId, Role, YouthCenterId) = GetAdminContext();
+        var (_, role, youthCenterId) = GetAdminContext();
 
-        var data =
-            await _cupService.EnterMatchResultAsync(
-                matchId,
-                dto,
-                Role, YouthCenterId);
+        var data = await _cupService.EnterMatchResultAsync(matchId, dto, role, youthCenterId);
 
         return ApiResult(data);
     }
 
     [Authorize(policy: Policies.RequireAdmin)]
     [HttpPut("matches/{matchId:int}/schedule")]
-    public async Task<IActionResult> ScheduleMatch(
-        int matchId,
-        [FromBody] ScheduleMatchDto dto)
+    public async Task<IActionResult> ScheduleMatch(int matchId, [FromBody] ScheduleMatchDto dto)
     {
-        var (userId, Role, YouthCenterId) = GetAdminContext();
+        var (_, role, youthCenterId) = GetAdminContext();
 
-        var data =
-            await _cupService.ScheduleMatchAsync(
-                matchId,
-                dto.ScheduledAt,
-                Role, YouthCenterId);
+        var data = await _cupService.ScheduleMatchAsync(matchId, dto.ScheduledAt, role, youthCenterId);
 
         return ApiResult(data);
     }
 
     #endregion
 
-
     // ─────────────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────────────
-    private int GetCurrentUserId()
-    {
-        return
-            User.GetUserId();
 
+    private int GetCurrentUserId() => User.GetUserId();
+
+    private UserRole GetCurrentUserRole() => User.GetRole();
+
+    private int? GetCurrentYouthCenter() => User.GetYouthCenterId();
+
+    /// <summary>
+    /// Extracts admin context from the JWT claims.
+    /// Throws a bilingual BusinessException if YouthCenterId claim is missing
+    /// so the global middleware returns a clean 400 response instead of a 500.
+    /// </summary>
+    private (int userId, UserRole role, int youthCenterId) GetAdminContext()
+    {
+        var youthCenterId = GetCurrentYouthCenter()
+            ?? throw new BusinessException(
+                messageAr: "لا يمكن تحديد مركز الشباب الخاص بك. تأكد من صلاحيات حسابك.",
+                messageEn: "Your youth center could not be determined. Please verify your account permissions.");
+
+        return (GetCurrentUserId(), GetCurrentUserRole(), youthCenterId);
     }
 
-    private UserRole GetCurrentUserRole()
-    {
-        return
-            User.GetRole();
-
-    }
-
-
-    private int? GetCurrentYouthCenter()
-    {
-        return
-            User.GetYouthCenterId();
-
-    }
-
-
+    /// <summary>
+    /// Wraps data in a standard BaseResponse with auto-detected Arabic/English messages.
+    /// </summary>
     private OkObjectResult ApiResult<T>(T data, string messageAr = "", string messageEn = "")
     {
         return Ok(new BaseResponse<T>
@@ -285,15 +248,15 @@ public class CupsController(ICupService cupService) : ControllerBase
         });
     }
 
-    private (int userId, UserRole Role, int YouthCenterId) GetAdminContext()
-    {
-        return (
-             GetCurrentUserId(),
-            GetCurrentUserRole(),
-            GetCurrentYouthCenter()
-                ?? throw new UnauthorizedAccessException(
-                    "You can only manage cups that belong to your youth center.")
-        );
-    }
+    /// <summary>
+    /// Builds a BaseResponse with no data payload — used for void operations
+    /// like accept/reject where we only want to return a message.
+    /// </summary>
+    private static BaseResponse<object> ApiResultRaw(string messageAr, string messageEn) =>
+        new()
+        {
+            Result = 1,
+            Data = null,
+            Alert = new Alert { MessageAr = messageAr, MessageEn = messageEn }
+        };
 }
-

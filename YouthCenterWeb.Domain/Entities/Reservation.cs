@@ -49,7 +49,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 
         public DateTime? ReviewedAt { get; set; }
 
-        // 🧠 مدة الحجز (مش متخزنة)
+        public DateTime? PaymentLockExpiresAt { get; set; }
+        public string? PaymentTransactionId { get; set; }
+        public DateTime? PaidAt { get; set; }
+        // 🧠 مدة الحجز (مش متخزنة) 
 
         [NotMapped]
         public decimal DurationHours

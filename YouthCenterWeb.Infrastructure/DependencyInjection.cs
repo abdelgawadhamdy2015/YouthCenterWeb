@@ -15,6 +15,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure;
 
 using YouthCenterWeb.Infrastructure.Data;
 using YouthCenterWeb.Domain.Entities;
+using System.Text.Json;
+
 public static class DependencyInjection
 {
     public static IServiceCollection AddIDependencyInjection(
@@ -24,7 +26,9 @@ public static class DependencyInjection
         // DbContext
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-
+        services.AddControllers()
+            .AddJsonOptions(options =>
+                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
         // HttpContextAccessor
         services.AddHttpContextAccessor();
 
@@ -57,7 +61,8 @@ public static class DependencyInjection
         services.AddScoped<IActivityService, ActivityService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<ICupService, CupService>();
-
+        services.AddScoped<IPaymentSignatureVerifier, PaymobSignatureVerifier>();
+        services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
 
 
         return services;
