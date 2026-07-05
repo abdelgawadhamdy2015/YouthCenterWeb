@@ -16,6 +16,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure;
 using YouthCenterWeb.Infrastructure.Data;
 using YouthCenterWeb.Domain.Entities;
 using System.Text.Json;
+using global::YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
+using Microsoft.Extensions.Options;
 
 public static class DependencyInjection
 {
@@ -24,13 +26,33 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         // DbContext
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+        services.Configure<DatabaseOptions>(
+           configuration.GetSection(DatabaseOptions.SectionName));
+
+        services.AddDbContext<AppDbContext>((sp, options) =>
+                {
+                    var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+
+                    options.UseSqlServer(db.ConnectionString);
+                });
+        // services.AddDbContext<AppDbContext>(options =>
+        //     options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
         services.AddControllers()
             .AddJsonOptions(options =>
                 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
         // HttpContextAccessor
         services.AddHttpContextAccessor();
+
+        // Payment Options
+        services.Configure<PaymobOptions>(
+                     configuration.GetSection(PaymobOptions.SectionName));
+        // JWT Options
+        services.Configure<JwtOptions>(
+            configuration.GetSection(JwtOptions.SectionName));
+        // JWT Options
+
+        services.Configure<PaymobOptions>(
+            configuration.GetSection(PaymobOptions.SectionName));
 
         // Mapper 
         services.AddScoped<IMapper<Activity, ActivityDto, CreateActivityDto>, ActivityMapper>();
