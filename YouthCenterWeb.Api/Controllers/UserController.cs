@@ -191,7 +191,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 });
 
             var result = await _userService.GetByEmailAsync(email)
-                ?? throw new NotFoundException($"User with email '{email}' not found.");
+                ?? throw new NotFoundException(messageAr: Messages.Data.NoDataAr, messageEn: Messages.Data.NoDataEn);
 
             return Ok(new BaseResponse<UserDto>
             {

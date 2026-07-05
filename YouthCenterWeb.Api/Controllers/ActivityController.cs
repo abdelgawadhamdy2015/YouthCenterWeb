@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Application.Common.Constants;
-using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
@@ -21,7 +20,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 
 
         [HttpGet]
-        [Authorize(Policies.RequireAuthenticated)]
         public async Task<IActionResult> GetActivities()
         {
 
@@ -57,7 +55,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         public async Task<IActionResult> CreateActivity(CreateActivityDto dto)
         {
             var created = await service.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetActivities), new { id = created.Id }, new BaseResponse<ActivityDto>
+            return CreatedAtAction(nameof(CreateActivity), new { id = created.Id }, new BaseResponse<ActivityDto>
             {
                 Result = 1,
                 Data = created,
@@ -76,11 +74,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         [Authorize(Policies.RequireAdmin)]
         public async Task<IActionResult> GetActivitiesByCenter()
         {
-            int? youthCenterId = User.GetYouthCenterId();
-
-            if (youthCenterId == null)
-                throw new BusinessException("youthCenterId is null");
-
+            int? youthCenterId = User.GetYouthCenterId() ?? throw new BusinessException("youthCenterId is null");
             var activities = await service.GetActivitiesByCenter(
                 youthCenterId.Value
             );

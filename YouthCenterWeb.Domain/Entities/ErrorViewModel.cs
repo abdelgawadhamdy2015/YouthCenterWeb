@@ -1,4 +1,4 @@
-namespace YouthCenterWeb.Models;
+namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 public class ErrorViewModel
 {

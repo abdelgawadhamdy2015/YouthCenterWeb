@@ -7,10 +7,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
     public class CreateYouthCenterDto
     {
         [Required]
-        public string Name { get; set; } = string.Empty;
+        public string NameAr { get; set; } = string.Empty;
 
+        public string NameEn { get; set; } = string.Empty;
         [Required]
         public string Phone { get; set; } = string.Empty;
+        [Required]
+        public double? Latitude { get; set; }
+        [Required]
+        public double? Longitude { get; set; }
 
         [Required]
         public string? Address { get; set; }

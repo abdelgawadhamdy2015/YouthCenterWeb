@@ -8,7 +8,6 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/YouthCenterWeb.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/YouthCenterWeb.pdb
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/AutoMapper.dll
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/AutoMapper.Extensions.Microsoft.DependencyInjection.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Azure.Core.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Azure.Identity.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/BCrypt.Net-Next.dll
@@ -148,15 +147,11 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/YouthCenterWeb.csproj.CoreCompileInputs.cache
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/YouthCenterWeb.MvcApplicationPartsAssemblyInfo.cs
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/YouthCenterWeb.MvcApplicationPartsAssemblyInfo.cache
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/YouthCenterWeb.RazorAssemblyInfo.cache
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/YouthCenterWeb.RazorAssemblyInfo.cs
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/YouthCenterWeb.sourcelink.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/rjimswa.dswa.cache.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/rjsmrazor.dswa.cache.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/rjsmcshtml.dswa.cache.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/scopedcss/Views/Shared/_Layout.cshtml.rz.scp.css
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/scopedcss/bundle/YouthCenterWeb.styles.css
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/scopedcss/projectbundle/YouthCenterWeb.bundle.scp.css
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/compressed/dki9zh2g6w-{0}-b9sayid5wm-b9sayid5wm.gz
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/compressed/dumafs7wl5-{0}-61n19gt1b8-61n19gt1b8.gz
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/compressed/b27zvu8069-{0}-xtxxf3hu2r-xtxxf3hu2r.gz
@@ -219,8 +214,6 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/compressed/5aygh10ord-{0}-muycvpuwrr-muycvpuwrr.gz
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/compressed/1lfqgy5utj-{0}-87fc7y1x7t-87fc7y1x7t.gz
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/compressed/rg419sotod-{0}-mlv21k5csn-mlv21k5csn.gz
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/compressed/y44ocp9uei-{0}-1zdnrqftm0-1zdnrqftm0.gz
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/compressed/tg8amugs95-{0}-1zdnrqftm0-1zdnrqftm0.gz
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/staticwebassets.build.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/staticwebassets.build.json.cache
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/staticwebassets.development.json

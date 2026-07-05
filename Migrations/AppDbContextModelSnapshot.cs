@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using YouthCenterWeb.Data;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
 
 #nullable disable
 
@@ -22,95 +22,6 @@ namespace YouthCenterWeb.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("YouthCenterWeb.Models.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("ActivityId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Bio")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<string>("HashedPassword")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Mobile")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("Role")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("YouthCenterId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActivityId");
-
-                    b.HasIndex("YouthCenterId");
-
-                    b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("YouthCenterWeb.Models.YouthCenter", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Address")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("City")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("YouthCenters");
-                });
-
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Activity", b =>
                 {
                     b.Property<int>("Id")
@@ -124,7 +35,8 @@ namespace YouthCenterWeb.Migrations
 
                     b.Property<string>("NameAr")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<string>("NameEn")
                         .IsRequired()
@@ -132,7 +44,264 @@ namespace YouthCenterWeb.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Activities");
+                    b.ToTable("Activities", (string)null);
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("CreatedByAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CurrentTeamCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal?>("EntryFee")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("GroupSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(4);
+
+                    b.Property<int>("MaxTeams")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NameAr")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("RegistrationDeadline")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TeamsAdvancingPerGroup")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(2);
+
+                    b.Property<int>("YouthCenterActivityId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByAdminId");
+
+                    b.HasIndex("YouthCenterActivityId");
+
+                    b.ToTable("Cups", (string)null);
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("CupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GroupNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CupId", "GroupNumber")
+                        .IsUnique();
+
+                    b.ToTable("CupGroups", (string)null);
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupMatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("CupId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MatchNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PenaltyScoreA")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PenaltyScoreB")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Round")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ScheduledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ScoreA")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ScoreB")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("TeamAId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TeamBId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WinnerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("TeamAId");
+
+                    b.HasIndex("TeamBId");
+
+                    b.HasIndex("WinnerId");
+
+                    b.HasIndex("CupId", "Round", "MatchNumber", "Stage")
+                        .IsUnique();
+
+                    b.ToTable("CupMatches", (string)null);
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupTeam", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CaptainUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Draws")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("GoalsAgainst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("GoalsFor")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Losses")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("Points")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime>("RegisteredAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TeamName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Wins")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaptainUserId");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("CupId", "CaptainUserId")
+                        .IsUnique();
+
+                    b.ToTable("CupTeams", (string)null);
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Reservation", b =>
@@ -149,6 +318,15 @@ namespace YouthCenterWeb.Migrations
                     b.Property<TimeOnly>("EndTime")
                         .HasColumnType("time");
 
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PaymentLockExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentTransactionId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
 
@@ -159,13 +337,16 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("SpecialRequest")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<TimeOnly>("StartTime")
                         .HasColumnType("time");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("TotalPrice")
                         .HasPrecision(18, 2)
@@ -184,11 +365,118 @@ namespace YouthCenterWeb.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("YouthCenterActivityId");
+                    b.HasIndex("YouthCenterId");
+
+                    b.HasIndex("YouthCenterActivityId", "Date", "StartTime", "EndTime")
+                        .IsUnique()
+                        .HasFilter("[Status] IN ('AwaitingPayment', 'Confirmed')");
+
+                    b.ToTable("Reservations", (string)null);
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ActivityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Bio")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("HashedPassword")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Mobile")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("YouthCenterId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActivityId");
 
                     b.HasIndex("YouthCenterId");
 
-                    b.ToTable("Reservations");
+                    b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenter", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("City")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("NameAr")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("YouthCenters", (string)null);
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", b =>
@@ -202,13 +490,15 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int>("ActivityId")
                         .HasColumnType("int");
 
-                    b.Property<bool?>("IsAvailable")
-                        .HasColumnType("bit");
+                    b.Property<bool>("IsAvailable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
 
-                    b.Property<int?>("MaxCapacity")
+                    b.Property<int>("MaxCapacity")
                         .HasColumnType("int");
 
-                    b.Property<decimal?>("Price")
+                    b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -221,28 +511,107 @@ namespace YouthCenterWeb.Migrations
 
                     b.HasIndex("YouthCenterId");
 
-                    b.ToTable("YouthCenterActivities");
+                    b.ToTable("YouthCenterActivities", (string)null);
                 });
 
-            modelBuilder.Entity("YouthCenterWeb.Models.User", b =>
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", b =>
                 {
-                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Activity", "Activity")
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", "CreatedByAdmin")
                         .WithMany()
-                        .HasForeignKey("ActivityId");
+                        .HasForeignKey("CreatedByAdminId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.HasOne("YouthCenterWeb.Models.YouthCenter", "YouthCenter")
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", "YouthCenterActivity")
                         .WithMany()
-                        .HasForeignKey("YouthCenterId")
+                        .HasForeignKey("YouthCenterActivityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByAdmin");
+
+                    b.Navigation("YouthCenterActivity");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", b =>
+                {
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", "Cup")
+                        .WithMany("Groups")
+                        .HasForeignKey("CupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cup");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupMatch", b =>
+                {
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", "Cup")
+                        .WithMany("Matches")
+                        .HasForeignKey("CupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", "Group")
+                        .WithMany("Matches")
+                        .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("Activity");
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupTeam", "TeamA")
+                        .WithMany("MatchesAsTeamA")
+                        .HasForeignKey("TeamAId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("YouthCenter");
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupTeam", "TeamB")
+                        .WithMany("MatchesAsTeamB")
+                        .HasForeignKey("TeamBId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupTeam", "Winner")
+                        .WithMany("MatchesWon")
+                        .HasForeignKey("WinnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Cup");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("TeamA");
+
+                    b.Navigation("TeamB");
+
+                    b.Navigation("Winner");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupTeam", b =>
+                {
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", "CaptainUser")
+                        .WithMany()
+                        .HasForeignKey("CaptainUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", "Cup")
+                        .WithMany("Teams")
+                        .HasForeignKey("CupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", "Group")
+                        .WithMany("Teams")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CaptainUser");
+
+                    b.Navigation("Cup");
+
+                    b.Navigation("Group");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Reservation", b =>
                 {
-                    b.HasOne("YouthCenterWeb.Models.User", "User")
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", "User")
                         .WithMany("Reservations")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -254,13 +623,29 @@ namespace YouthCenterWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("YouthCenterWeb.Models.YouthCenter", null)
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenter", null)
                         .WithMany("Reservations")
                         .HasForeignKey("YouthCenterId");
 
                     b.Navigation("User");
 
                     b.Navigation("YouthCenterActivity");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", b =>
+                {
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Activity", "Activity")
+                        .WithMany()
+                        .HasForeignKey("ActivityId");
+
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenter", "YouthCenter")
+                        .WithMany()
+                        .HasForeignKey("YouthCenterId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Activity");
+
+                    b.Navigation("YouthCenter");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenterActivity", b =>
@@ -271,7 +656,7 @@ namespace YouthCenterWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("YouthCenterWeb.Models.YouthCenter", "YouthCenter")
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenter", "YouthCenter")
                         .WithMany("YouthCenterActivities")
                         .HasForeignKey("YouthCenterId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -282,12 +667,37 @@ namespace YouthCenterWeb.Migrations
                     b.Navigation("YouthCenter");
                 });
 
-            modelBuilder.Entity("YouthCenterWeb.Models.User", b =>
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", b =>
+                {
+                    b.Navigation("Groups");
+
+                    b.Navigation("Matches");
+
+                    b.Navigation("Teams");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupGroup", b =>
+                {
+                    b.Navigation("Matches");
+
+                    b.Navigation("Teams");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.CupTeam", b =>
+                {
+                    b.Navigation("MatchesAsTeamA");
+
+                    b.Navigation("MatchesAsTeamB");
+
+                    b.Navigation("MatchesWon");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", b =>
                 {
                     b.Navigation("Reservations");
                 });
 
-            modelBuilder.Entity("YouthCenterWeb.Models.YouthCenter", b =>
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenter", b =>
                 {
                     b.Navigation("Reservations");
 

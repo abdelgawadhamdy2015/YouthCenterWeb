@@ -1,13 +1,14 @@
 using System.Security.Claims;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.API.Middleware;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Services;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,59 +60,63 @@ builder.Services.AddSwaggerGen(options =>
 });
 #endregion
 
-#region 🔹 DependencyInjection
+#region 🔹 Dependency Injection
 builder.Services.AddIDependencyInjection(builder.Configuration);
 #endregion
 
-#region 🔹 JWT CONFIG (FIXED 100%)
-var jwtSection = builder.Configuration.GetSection("Jwt");
+#region 🔹 JWT AUTH (CLEAN + OPTIONS BASED)
 
-var jwtKey = jwtSection["Key"];
-var jwtIssuer = jwtSection["Issuer"];
-var jwtAudience = jwtSection["Audience"];
-if (string.IsNullOrWhiteSpace(jwtKey))
+// bind once (clean approach)
+var jwtOptions = builder.Configuration
+    .GetSection(JwtOptions.SectionName)
+    .Get<JwtOptions>();
+
+if (jwtOptions is null || string.IsNullOrWhiteSpace(jwtOptions.Key))
 {
-    throw new Exception("JWT Key is missing in appsettings.json");
+    throw new Exception("JWT configuration is missing or invalid");
 }
-#region background service
-builder.Services.AddHostedService<ReservationStatusBackgroundService>();
-#endregion
 
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
 
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
 
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtKey)
-        )
-    };
-});
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.Key)
+            )
+        };
+    });
+
 #endregion
 
-#region  🔹 Policy
+#region 🔹 Authorization Policies
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(Policies.RequireAuthenticated, policy =>
         policy.RequireAuthenticatedUser());
 
     options.AddPolicy(Policies.RequireAdmin, policy =>
-        policy.RequireClaim(ClaimTypes.Role, UserRole.Admin.ToString(), UserRole.SuperAdmin.ToString()));
+        policy.RequireClaim(ClaimTypes.Role,
+            UserRole.Admin.ToString(),
+            UserRole.SuperAdmin.ToString()));
 
     options.AddPolicy(Policies.RequireSuperAdmin, policy =>
-        policy.RequireClaim(ClaimTypes.Role, UserRole.SuperAdmin.ToString()));
-
+        policy.RequireClaim(ClaimTypes.Role,
+            UserRole.SuperAdmin.ToString()));
 });
+#endregion
 
+#region 🔹 Background Services
+builder.Services.AddHostedService<ReservationStatusBackgroundService>();
 #endregion
 
 var app = builder.Build();
@@ -125,7 +130,7 @@ app.UseSwaggerUI(c =>
 });
 #endregion
 
-#region 🔹 Error Handling (Production)
+#region 🔹 Production Error Handling
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler(handler =>
@@ -149,6 +154,7 @@ if (!app.Environment.IsDevelopment())
 
 #region 🔹 Middleware Pipeline
 app.UseHttpsRedirection();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseRouting();
 

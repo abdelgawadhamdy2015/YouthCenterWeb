@@ -1,4 +1,4 @@
-using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.InterFaces;
 

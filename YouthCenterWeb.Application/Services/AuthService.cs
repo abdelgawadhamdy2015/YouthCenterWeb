@@ -6,6 +6,8 @@ using YouthCenterWeb.InterFaces;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
+using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
@@ -97,7 +99,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     Mobile = user.Mobile,
                     Role = user.Role,
                     FavActivityName = user.Activity?.NameAr,
-                    YouthCenterName = user.YouthCenter?.Name,
+                    YouthCenterName = user.YouthCenter?.NameAr,
                     Token = jwtService.GenerateToken(user)
                 },
                 Alert = new Alert

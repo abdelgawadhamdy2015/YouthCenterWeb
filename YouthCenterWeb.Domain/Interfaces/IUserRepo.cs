@@ -1,6 +1,5 @@
-// Domain/Interfaces/IUserRepo.cs
 using System.Linq.Expressions;
-using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
 {

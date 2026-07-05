@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using YouthCenterWeb.Data;
-using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
+using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
 
 namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
 {

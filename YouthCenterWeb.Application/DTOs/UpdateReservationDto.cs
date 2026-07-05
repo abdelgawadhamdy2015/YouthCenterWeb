@@ -18,5 +18,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
 
         public string? SpecialRequest { get; set; }
 
+
     }
 }

@@ -5,9 +5,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
     public class YouthCenterActivityDto
     {
         public int Id { get; set; }
-        public string ActivityName { get; set; } = string.Empty;
-        public string YouthCenterName { get; set; } = string.Empty;
-
+        public string ActivityNameAr { get; set; } = string.Empty;
+        public string ActivityNameEn { get; set; } = string.Empty;
+        public string YouthCenterNameAr { get; set; } = string.Empty;
+        public string YouthCenterNameEn { get; set; } = string.Empty;
         [Required]
         public int YouthCenterId { get; set; }
 

@@ -1,42 +1,47 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using YouthCenterWeb.InterFaces;
-using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
+
 namespace YouthCenterWeb.Services;
 
-public class JwtService(IConfiguration config) : IJwtService
+public class JwtService : IJwtService
 {
-    private readonly IConfiguration _config = config;
+    private readonly JwtOptions _jwtOptions;
+
+    public JwtService(IOptions<JwtOptions> options)
+    {
+        _jwtOptions = options.Value;
+    }
 
     public string GenerateToken(User user)
     {
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()?? string.Empty),
-                        new(ClaimTypes.Role, user.Role.ToString() ?? string.Empty),
-
-            new(ClaimTypes.Email, user.Email?? string.Empty),
-            new(ClaimsConstants.YouthCenterId, user.YouthCenterId?.ToString() ?? "")
-
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Role, user.Role.ToString()),
+            new(ClaimTypes.Email, user.Email ?? string.Empty),
+            new(ClaimsConstants.YouthCenterId, user.YouthCenterId?.ToString() ?? string.Empty)
         };
 
         var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(_jwtOptions.Key));
 
-            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)
-        );
-
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var credentials = new SigningCredentials(
+            key,
+            SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: _jwtOptions.Issuer,
+            audience: _jwtOptions.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(1),
-            signingCredentials: creds
-        );
+            expires: DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenMinutes),
+            signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
@@ -44,21 +49,25 @@ public class JwtService(IConfiguration config) : IJwtService
     public bool ValidateToken(string token)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
 
         try
         {
-            tokenHandler.ValidateToken(token, new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
+            tokenHandler.ValidateToken(
+                token,
+                new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
 
-                ValidIssuer = _config["Jwt:Issuer"],
-                ValidAudience = _config["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(key)
-            }, out SecurityToken validatedToken);
+                    ValidIssuer = _jwtOptions.Issuer,
+                    ValidAudience = _jwtOptions.Audience,
+
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(_jwtOptions.Key))
+                },
+                out _);
 
             return true;
         }
@@ -67,5 +76,4 @@ public class JwtService(IConfiguration config) : IJwtService
             return false;
         }
     }
-
 }

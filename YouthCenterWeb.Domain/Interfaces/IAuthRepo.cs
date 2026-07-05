@@ -1,9 +1,11 @@
-using YouthCenterWeb.Data.DTOs;
-using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
-public interface IAuthRepo
+namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
 {
-    Task<User?> GetByEmailAsync(string email);
-    Task AddAsync(User user);
-    Task SaveChangesAsync();
+    public interface IAuthRepo
+    {
+        Task<User?> GetByEmailAsync(string email);
+        Task AddAsync(User user);
+        Task SaveChangesAsync();
+    }
 }

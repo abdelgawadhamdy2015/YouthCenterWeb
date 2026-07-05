@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
-using YouthCenterWeb.Models;
 
 namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 {
@@ -50,11 +49,24 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 
         public DateTime? ReviewedAt { get; set; }
 
-        // 🧠 مدة الحجز (مش متخزنة)
-        [NotMapped]
-        public decimal DurationHours =>
-           (decimal)(EndTime - StartTime).TotalHours
-           ;
+        public DateTime? PaymentLockExpiresAt { get; set; }
+        public string? PaymentTransactionId { get; set; }
+        public DateTime? PaidAt { get; set; }
+        // 🧠 مدة الحجز (مش متخزنة) 
 
+        [NotMapped]
+        public decimal DurationHours
+        {
+            get
+            {
+                var duration = EndTime - StartTime;
+
+                // If EndTime is before or equal StartTime, it crosses midnight
+                if (duration.TotalHours <= 0)
+                    duration = duration.Add(TimeSpan.FromHours(24));
+
+                return (decimal)duration.TotalHours;
+            }
+        }
     }
 }

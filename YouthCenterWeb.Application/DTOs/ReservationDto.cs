@@ -13,9 +13,11 @@ namespace YouthCenterWeb.DTOs
         public TimeOnly EndTime { get; set; }
 
         public decimal? TotalPrice { get; set; }
+        public string? PaymentUrl { get; set; } // only populated right after creation, for the client to open
 
         public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
-
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
         public int UserId { get; set; }
         public string? Username { get; set; } = string.Empty;
         public int YouthCenterActivityId { get; set; }
@@ -28,6 +30,7 @@ namespace YouthCenterWeb.DTOs
         public string? SpecialRequest { get; set; } = string.Empty;
 
         public decimal DurationHours { get; set; }
+        public string? RejectionReason { get; set; }
 
     }
 }

@@ -1,4 +1,6 @@
 
+using Microsoft.EntityFrameworkCore;
+using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
@@ -6,6 +8,7 @@ using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
+using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 
@@ -13,6 +16,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
     public class ReservationService(
         IReservationRepo repo,
+        IPaymentGateway paymentGateway,
         IMapper<Reservation, ReservationDto, CreateReservationDto> mapper)
         : IReservationService
     {
@@ -33,7 +37,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             CreateReservationDto dto, int userId, UserRole role, int? adminCenterId)
         {
             var activity = await repo.GetYouthCenterActivity(dto.YouthCenterActivityId)
-                ?? throw new NotFoundException("Activity not found");
+                ?? throw new NotFoundException(messageAr: Messages.Data.NoDataAr, messageEn: Messages.Data.NoDataAr);
 
             if (role == UserRole.Admin && activity.YouthCenterId != adminCenterId)
                 throw new ForbiddenException("Activity does not belong to your center");
@@ -41,11 +45,60 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             if (role == UserRole.User)
                 dto.UserId = userId;
 
+            var overlap = await repo.HasActiveOverlapAsync(
+                dto.YouthCenterActivityId, dto.Date, dto.StartTime, dto.EndTime);
+
+            if (overlap)
+                throw new BusinessException("This time slot is no longer available.");
+
             var entity = mapper.CreateEntity(dto);
             entity.TotalPrice = activity.Price * entity.DurationHours ?? 0;
 
-            await repo.AddAsync(entity);
-            await repo.SaveChangesAsync();
+            if (role == UserRole.Admin || role == UserRole.SuperAdmin)
+            {
+                entity.Status = ReservationStatus.Confirmed;
+                entity.PaidAt = DateTime.UtcNow;
+                entity.PaymentTransactionId = "MANUAL";
+                entity.ReviewedBy = userId;
+                entity.ReviewedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                entity.Status = ReservationStatus.AwaitingPayment;
+                entity.PaymentLockExpiresAt = DateTime.UtcNow.AddMinutes(10);
+            }
+
+            try
+            {
+                await repo.AddAsync(entity);
+                await repo.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                throw new BusinessException("This time slot was just taken by another user.");
+            }
+
+            // Only for User role — now that the lock row exists and has an Id,
+            // create the payment intent with the gateway and attach the reference.
+            if (role == UserRole.User)
+            {
+                var paymentOrder = await paymentGateway.CreatePaymentOrderAsync(
+                    merchantOrderId: entity.Id.ToString(),
+                    amountCents: (int)(entity.TotalPrice * 100));
+
+                entity.PaymentTransactionId = paymentOrder.OrderId; // gateway's order id, for tracing
+                if (paymentOrder.PaymentUrl == null)
+                    throw new BusinessException("Failed to create payment order.");
+                repo.Update(entity);
+                await repo.SaveChangesAsync();
+
+                var dtoResult = mapper.ToDto(entity);
+                dtoResult.PaymentUrl = paymentOrder.PaymentUrl; // Flutter opens this
+                return dtoResult;
+            }
+
+            var youthCenterActivity = await repo.GetYouthCenterActivity(entity.YouthCenterActivityId);
+            entity.YouthCenterActivity = youthCenterActivity;
             return mapper.ToDto(entity);
         }
 
@@ -167,6 +220,87 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 reservation.TotalPrice = (decimal)dto.TotalPrice;
 
             return reservation;
+        }
+
+
+
+        public async Task<List<PeakHourDto>?> GetAvailHoursAsync(AvailBookingDto dto)
+        {
+
+            return await repo.GetAvailBookingHoursAsync(dto);
+
+        }
+
+        public async Task<ReservationDto?> LockForPaymentAsync(CreateReservationDto dto, int userId)
+        {
+            var activity = await repo.GetYouthCenterActivity(dto.YouthCenterActivityId)
+                ?? throw new NotFoundException(messageAr: Messages.Data.NoDataAr, messageEn: Messages.Data.NoDataAr);
+
+            dto.UserId = userId;
+
+            // App-level check (fast path, good UX message)
+            var overlap = await repo.HasActiveOverlapAsync(
+                dto.YouthCenterActivityId, dto.Date, dto.StartTime, dto.EndTime);
+
+            if (overlap)
+                throw new BusinessException("This time slot is no longer available.");
+
+            var entity = mapper.CreateEntity(dto);
+            entity.Status = ReservationStatus.AwaitingPayment;
+            entity.PaymentLockExpiresAt = DateTime.UtcNow.AddMinutes(10); // tune this
+            entity.TotalPrice = activity.Price * entity.DurationHours ?? 0;
+
+            try
+            {
+                await repo.AddAsync(entity);
+                await repo.SaveChangesAsync(); // DB unique index catches any race the check above missed
+            }
+            catch (DbUpdateException)
+            {
+                throw new BusinessException("This time slot was just taken by another user.");
+            }
+
+            return mapper.ToDto(entity);
+        }
+
+        public async Task<ReservationDto?> ConfirmPaymentAsync(int reservationId, ConfirmPaymentDto dto)
+        {
+            var reservation = await repo.GetByIdWithRelationsAsync(reservationId)
+                ?? throw new NotFoundException("Reservation", reservationId);
+
+            if (reservation.Status != ReservationStatus.AwaitingPayment)
+                throw new BusinessException("Reservation is not awaiting payment.");
+
+            if (reservation.PaymentLockExpiresAt < DateTime.UtcNow)
+                throw new BusinessException("Payment window expired. Please rebook.");
+
+            // حماية إضافية — لو المبلغ اللي دفعه العميل مختلف عن سعر الحجز، مترفضش تأكيده
+            if (dto.AmountPaid.HasValue && dto.AmountPaid != reservation.TotalPrice)
+                throw new BusinessException("Paid amount does not match reservation price.");
+
+            reservation.Status = ReservationStatus.Confirmed;
+            reservation.PaymentTransactionId = dto.TransactionId;
+            reservation.PaidAt = DateTime.UtcNow;
+            reservation.PaymentLockExpiresAt = null;
+
+            repo.Update(reservation);
+            await repo.SaveChangesAsync();
+
+            return mapper.ToDto(reservation);
+        }
+
+        public async Task FailPaymentAsync(int reservationId, string reason)
+        {
+            var reservation = await repo.GetByIdWithRelationsAsync(reservationId)
+                ?? throw new NotFoundException("Reservation", reservationId);
+
+            if (reservation.Status != ReservationStatus.AwaitingPayment) return; // idempotent no-op
+
+            reservation.Status = ReservationStatus.Cancelled;
+            reservation.RejectionReason = reason;
+
+            repo.Update(reservation); // slot is freed automatically — next overlap check ignores Cancelled
+            await repo.SaveChangesAsync();
         }
     }
 }

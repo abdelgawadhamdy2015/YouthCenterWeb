@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
-using YouthCenterWeb.Data;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
 
 namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 

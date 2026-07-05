@@ -138,16 +138,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
             );
 
             return CreatedAtAction(nameof(GetById), new { id = result?.Id },
-                new BaseResponse<ReservationDto>
-                {
-                    Result = 1,
-                    Data = result,
-                    Alert = new Alert
-                    {
-                        MessageAr = Messages.Data.CreatedAr,
-                        MessageEn = Messages.Data.CreatedEn
-                    }
-                });
+                new BaseResponse<ReservationDto> { Result = 1, Data = result, Alert = new Alert { MessageAr = Messages.Data.CreatedAr, MessageEn = Messages.Data.CreatedEn } });
         }
 
         // ── UPDATE api/reservation/{id} ───────────────────────────────────────
@@ -173,6 +164,46 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 }
             });
         }
+
+
+        // Get Avil Hours that user can choose it 
+        [Authorize(policy: Policies.RequireAuthenticated)]
+        [HttpPost("available-hours")]
+        public async Task<ActionResult> GetAvailHours([FromBody] AvailBookingDto dto)
+        {
+
+            List<PeakHourDto> hours = await _service.GetAvailHoursAsync(dto) ?? throw new NotFoundException(messageAr: Messages.Data.NoDataAr, messageEn: Messages.Data.NoDataEn);
+            if (hours.Count == 0)
+            {
+                return NotFound(new BaseResponse<List<PeakHourDto>>
+                {
+                    Result = 0,
+                    Alert = new Alert
+                    {
+                        MessageAr = Messages.Data.NoDataAr,
+                        MessageEn = Messages.Data.NoDataEn
+
+                    }
+                });
+
+            }
+            else
+            {
+                return Ok(new BaseResponse<List<PeakHourDto>>
+                {
+                    Result = 1,
+                    Data = hours,
+                    Alert = new Alert
+                    {
+                        MessageAr = Messages.Data.NoDataAr,
+                        MessageEn = Messages.Data.NoDataEn
+
+                    }
+                });
+            }
+        }
+
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -233,6 +264,34 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                     MessageEn = Messages.Data.UpdatedEn
                 }
             });
+        }
+
+
+        [HttpPost("lock")]
+        public async Task<IActionResult> Lock(CreateReservationDto dto)
+        {
+            var result = await _service.LockForPaymentAsync(dto, User.GetUserId());
+            return Ok(new BaseResponse<ReservationDto>
+            {
+                Result = 1,
+                Data = result,
+                Alert = new Alert { MessageAr = Messages.Data.CreatedAr, MessageEn = Messages.Data.CreatedEn }
+            });
+        }
+
+        // Called by YOUR backend after verifying the payment gateway's webhook — not directly by the app
+        [HttpPost("{id}/confirm-payment")]
+        public async Task<IActionResult> ConfirmPayment(int id, [FromBody] ConfirmPaymentDto dto)
+        {
+            var result = await _service.ConfirmPaymentAsync(id, dto);
+            return Ok(new BaseResponse<ReservationDto> { Result = 1, Data = result });
+        }
+
+        [HttpPost("{id}/fail-payment")]
+        public async Task<IActionResult> FailPayment(int id, [FromBody] RejectReasonDto dto)
+        {
+            await _service.FailPaymentAsync(id, dto.Reason);
+            return Ok(new BaseResponse<string> { Result = 1 });
         }
     }
 }
