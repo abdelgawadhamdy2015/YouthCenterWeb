@@ -9,6 +9,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
         public string NameAr { get; set; } = string.Empty;
         public string NameEn { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public int YouthCenterActivityId { get; set; }
 
         public string? ActivityNameAr { get; set; }
         public string? ActivityNameEn { get; set; }

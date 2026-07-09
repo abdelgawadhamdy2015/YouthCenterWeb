@@ -304,6 +304,39 @@ namespace YouthCenterWeb.Migrations
                     b.ToTable("CupTeams", (string)null);
                 });
 
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.OtpEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OtpEntries");
+                });
+
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Reservation", b =>
                 {
                     b.Property<int>("Id")

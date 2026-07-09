@@ -9,6 +9,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
         public string ActivityNameEn { get; set; } = string.Empty;
         public string YouthCenterNameAr { get; set; } = string.Empty;
         public string YouthCenterNameEn { get; set; } = string.Empty;
+        public double? YouthCenterLatitude { get; set; }
+        public double? YouthCenterLongitude { get; set; }
         [Required]
         public int YouthCenterId { get; set; }
 

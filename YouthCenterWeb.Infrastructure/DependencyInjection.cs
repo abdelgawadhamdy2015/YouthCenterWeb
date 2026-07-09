@@ -72,6 +72,8 @@ public static class DependencyInjection
         services.AddScoped<IYouthCenterActivityRepo, YouthCenterActivityRepo>();
         services.AddScoped<IActivityRepo, ActivityRepo>();
         services.AddScoped<ICupRepo, CupRepo>();
+        services.AddScoped<IAvailabilityRepo, AvailabilityRepo>();
+        services.AddScoped<IOtpRepo, OtpRepo>();
 
         // services
         services.AddScoped<IJwtService, JwtService>();
@@ -85,6 +87,8 @@ public static class DependencyInjection
         services.AddScoped<ICupService, CupService>();
         services.AddScoped<IPaymentSignatureVerifier, PaymobSignatureVerifier>();
         services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
+        services.AddScoped<IOtpService, OtpService>();
+        services.AddScoped<IEmailService, EmailService>();
 
 
         return services;

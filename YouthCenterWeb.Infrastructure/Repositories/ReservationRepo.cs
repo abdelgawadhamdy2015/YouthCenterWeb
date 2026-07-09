@@ -1,6 +1,7 @@
 using System.Formats.Asn1;
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Application.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Extensions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
@@ -12,6 +13,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 public class ReservationRepo(AppDbContext context) : IReservationRepo
 {
     private readonly AppDbContext _context = context;
+
+    // Matches don't have a Duration field yet — same 1-hour assumption used
+    // in AvailabilityRepo/CupService. Keep these in sync if that ever changes.
+    private static readonly TimeSpan MatchDuration = TimeSpan.FromHours(1);
 
     // ── shared include chain — one place to maintain ─────────────────────────
     private IQueryable<Reservation> WithRelations() =>
@@ -186,6 +191,13 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Returns per-hour booking counts for an activity+date, combining BOTH
+    /// reservations and scheduled cup matches. This is the single source the
+    /// Flutter app reads for slot availability (reservation flow AND cup
+    /// match scheduling), so a slot taken by either one shows as booked to
+    /// the other — no separate/duplicated logic to drift out of sync.
+    /// </summary>
     public async Task<List<PeakHourDto>> GetAvailBookingHoursAsync(AvailBookingDto? dto)
     {
         var query = WithRelations().AsQueryable();
@@ -219,6 +231,35 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
      .ToDictionary(
          g => g.Key,
          g => g.Count());
+
+        // ── إضافة ساعات المباريات المجدولة على نفس النشاط والتاريخ ──────────
+        // AvailBookingDto.YouthCenterActivityId و Date غير nullable، يبقى
+        // الفحص الوحيد المطلوب هنا هو إن dto نفسه مش null.
+        if (dto != null)
+        {
+            var targetDate = dto.Date.Date;
+
+            var matchHours = await _context.CupMatches
+                .Where(m =>
+                    m.Cup.YouthCenterActivityId == dto.YouthCenterActivityId &&
+                    m.ScheduledAt != null &&
+                    m.ScheduledAt.Value.Date == targetDate &&
+                    m.Status != CupMatchStatus.Completed)
+                .Select(m => m.ScheduledAt!.Value)
+                .ToListAsync();
+
+            foreach (var scheduledAt in matchHours)
+            {
+                var matchStart = scheduledAt.Hour;
+                var matchEnd = matchStart + (int)MatchDuration.TotalHours;
+
+                foreach (var hour in Enumerable.Range(matchStart, matchEnd - matchStart)
+                                                .Select(h => h % 24))
+                {
+                    hourCounts[hour] = hourCounts.GetValueOrDefault(hour) + 1;
+                }
+            }
+        }
 
         return Enumerable.Range(0, 24)
             .Select(hour => new PeakHourDto

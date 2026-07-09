@@ -26,6 +26,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 ActivityNameEn = entity.Activity?.NameEn ?? string.Empty,
                 YouthCenterNameAr = entity.YouthCenter?.NameAr ?? string.Empty,
                 YouthCenterNameEn = entity.YouthCenter?.NameEn ?? string.Empty,
+                YouthCenterLatitude = entity.YouthCenter?.Latitude,
+                YouthCenterLongitude = entity.YouthCenter?.Longitude,
                 YouthCenterId = entity.YouthCenterId,
                 ActivityId = entity.ActivityId,
                 IsAvailable = entity.IsAvailable,
