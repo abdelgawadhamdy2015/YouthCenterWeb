@@ -19,13 +19,15 @@ public class JwtService : IJwtService
         _jwtOptions = options.Value;
     }
 
-    public string GenerateToken(User user)
+    public string GenerateToken(User user, Guid sessionId)
+
     {
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Role, user.Role.ToString()),
             new(ClaimTypes.Email, user.Email ?? string.Empty),
+            new(ClaimsConstants.SessionId, sessionId.ToString()?? string.Empty),
             new(ClaimsConstants.YouthCenterId, user.YouthCenterId?.ToString() ?? string.Empty)
         };
 

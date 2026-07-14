@@ -19,8 +19,6 @@ using System.Text.Json;
 using global::YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
 using Microsoft.Extensions.Options;
 using global::YouthCenterWeb.YouthCenterWeb.Infrastructure.PushNotification;
-using FirebaseAdmin;
-using Google.Apis.Auth.OAuth2;
 
 public static class DependencyInjection
 {
@@ -28,36 +26,34 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // DbContext
+        // ── Options binding ─────────────────────────────────────────────
         services.Configure<DatabaseOptions>(
-           configuration.GetSection(DatabaseOptions.SectionName));
-
-        services.AddDbContext<AppDbContext>((sp, options) =>
-                {
-                    var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
-
-                    options.UseSqlServer(db.ConnectionString);
-                });
-        // services.AddDbContext<AppDbContext>(options =>
-        //     options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-        services.AddControllers()
-            .AddJsonOptions(options =>
-                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
-        // HttpContextAccessor
-        services.AddHttpContextAccessor();
-
-        // Payment Options
-        services.Configure<PaymobOptions>(
-                     configuration.GetSection(PaymobOptions.SectionName));
-        // JWT Options
-        services.Configure<JwtOptions>(
-            configuration.GetSection(JwtOptions.SectionName));
-        // JWT Options
+            configuration.GetSection(DatabaseOptions.SectionName));
 
         services.Configure<PaymobOptions>(
             configuration.GetSection(PaymobOptions.SectionName));
 
-        // Mapper 
+        services.Configure<JwtOptions>(
+            configuration.GetSection(JwtOptions.SectionName));
+
+        // ── DbContext ────────────────────────────────────────────────────
+        services.AddDbContext<AppDbContext>((sp, options) =>
+        {
+            var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+            options.UseSqlServer(db.ConnectionString);
+        });
+
+        // ── Controllers / JSON ───────────────────────────────────────────
+        services.AddControllers()
+            .AddJsonOptions(options =>
+                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+
+        services.AddHttpContextAccessor();
+
+        // ── SignalR ──────────────────────────────────────────────────────
+        services.AddSignalR();
+
+        // ── Mappers ──────────────────────────────────────────────────────
         services.AddScoped<IMapper<Activity, ActivityDto, CreateActivityDto>, ActivityMapper>();
         services.AddScoped<IMapper<Reservation, ReservationDto, CreateReservationDto>, ReservationMapper>();
         services.AddScoped<IMapper<User, UserDto, RegisterDto>, UserMapper>();
@@ -66,12 +62,12 @@ public static class DependencyInjection
 
         services.AddAutoMapper(cfg => { }, typeof(CupProfile).Assembly);
 
-
+        // ── Push notifications ───────────────────────────────────────────
         services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
         services.AddScoped<IPushNotificationSender, FirebasePushNotificationSender>();
         services.AddScoped<INotificationService, NotificationService>();
 
-        // Repositories
+        // ── Repositories ──────────────────────────────────────────────────
         services.AddScoped<IAuthRepo, AuthRepo>();
         services.AddScoped<IReservationRepo, ReservationRepo>();
         services.AddScoped(typeof(IGenericRepo<>), typeof(GenericRepo<>));
@@ -83,7 +79,7 @@ public static class DependencyInjection
         services.AddScoped<IAvailabilityRepo, AvailabilityRepo>();
         services.AddScoped<IOtpRepo, OtpRepo>();
 
-        // services
+        // ── Services ──────────────────────────────────────────────────────
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IReservationService, ReservationService>();
@@ -97,6 +93,7 @@ public static class DependencyInjection
         services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
         services.AddScoped<IOtpService, OtpService>();
         services.AddScoped<IEmailService, EmailService>();
+
         services.AddHealthChecks()
             .AddCheck<FirebaseHealthCheck>("firebase");
 

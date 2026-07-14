@@ -7,5 +7,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
         Task<User?> GetByEmailAsync(string email);
         Task AddAsync(User user);
         Task SaveChangesAsync();
+        Task UpdateSessionAsync(User user, Guid sessionId);
     }
 }

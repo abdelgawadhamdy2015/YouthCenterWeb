@@ -11,6 +11,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
         public string Name { get; set; } = string.Empty;
         public string Mobile { get; set; } = string.Empty;
         public string? YouthCenterName { get; set; }
+        public int? FavActivityId { get; set; }
         public string? FavActivityName { get; set; }
         public int ReservationCount { get; set; } = 0;
 

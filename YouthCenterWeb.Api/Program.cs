@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using YouthCenterWeb.Infrastructure.Firebase;
@@ -10,6 +11,8 @@ using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Services;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,7 +67,6 @@ builder.Services.AddSwaggerGen(options =>
 #region 🔹 Dependency Injection
 builder.Services.AddIDependencyInjection(builder.Configuration);
 
-// ✅ builder.Configuration بيختار المصدر الصح تلقائيًا (user-secrets محليًا / env variables في production)
 var serviceAccountJson = builder.Configuration["Firebase:ServiceAccountJson"];
 
 if (string.IsNullOrWhiteSpace(serviceAccountJson))
@@ -85,9 +87,8 @@ catch (Exception ex)
 }
 #endregion
 
-#region 🔹 JWT AUTH (CLEAN + OPTIONS BASED)
+#region 🔹 JWT AUTH (single source of truth — bound options + session validation + SignalR support)
 
-// bind once (clean approach)
 var jwtOptions = builder.Configuration
     .GetSection(JwtOptions.SectionName)
     .Get<JwtOptions>();
@@ -112,8 +113,52 @@ builder.Services
             ValidAudience = jwtOptions.Audience,
 
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtOptions.Key)
-            )
+                Encoding.UTF8.GetBytes(jwtOptions.Key))
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            // Lets SignalR read the JWT from the query string on the hub's
+            // WebSocket handshake, since it can't set an Authorization header there.
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/hubs/session"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            },
+
+            // Enforces single active session: rejects any token whose "sid"
+            // claim doesn't match the user's CurrentSessionId in the DB.
+            OnTokenValidated = async context =>
+            {
+                var userIdClaim = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var sidClaim = context.Principal?.FindFirstValue(ClaimsConstants.SessionId);
+
+                if (userIdClaim == null || sidClaim == null)
+                {
+                    context.Fail("Missing session claim.");
+                    return;
+                }
+
+                var dbContext = context.HttpContext.RequestServices
+                    .GetRequiredService<AppDbContext>();
+
+                var currentSessionId = await dbContext.Users
+                    .Where(u => u.Id == int.Parse(userIdClaim))
+                    .Select(u => u.CurrentSessionId)
+                    .FirstOrDefaultAsync();
+
+                if (currentSessionId == null || currentSessionId.ToString() != sidClaim)
+                {
+                    context.Fail("Session revoked — logged in on another device.");
+                }
+            }
         };
     });
 
@@ -183,8 +228,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<SessionHub>("/hubs/session");
+app.MapHealthChecks("/health");
 #endregion
-
-app.MapHealthChecks("/health"); // GET /health هيرجعلك 200 لو كله تمام
 
 app.Run();
