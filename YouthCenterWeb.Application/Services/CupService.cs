@@ -5,6 +5,7 @@ using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Helpers;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
@@ -13,7 +14,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         ICupRepo cupRepo,
         INotificationService notificationService,
         IYouthCenterActivityRepo youthCenterActivityRepo,
-        IAvailabilityRepo availabilityRepo, // ✅ new — shared reservation/match conflict check
+        IAvailabilityRepo availabilityRepo,
         IMapper mapper) : ICupService
     {
         private readonly ICupRepo _cupRepo = cupRepo;
@@ -21,8 +22,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         private readonly IAvailabilityRepo _availabilityRepo = availabilityRepo;
         private readonly IMapper _mapper = mapper;
 
-        // Matches don't have a Duration field yet — same 1-hour assumption
-        // used in AvailabilityRepo. Keep these in sync if that ever changes.
         private static readonly TimeSpan MatchDuration = TimeSpan.FromHours(1);
 
         // ─────────────────────────────────────────────────────────────────────
@@ -50,7 +49,71 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // READ OPERATIONS
+        // NOTIFICATION HELPERS
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Single entry point for every "broadcast to the activity's followers" notification.
+        /// Always keys off cup.YouthCenterActivityId directly — never the navigation
+        /// property, which isn't guaranteed to be loaded.
+        /// </summary>
+        private Task NotifyActivityTopicAsync(
+            Cup cup,
+            string title,
+            string body,
+            string notificationType)
+        {
+            return notificationService.SendToTopicAsync(
+                topic: NotificationTopics.Activity(cup.YouthCenterActivity.ActivityId),
+                title: title,
+                body: body,
+                data: new Dictionary<string, string>
+                {
+                    ["type"] = notificationType,
+                    ["cupId"] = cup.Id.ToString()
+                });
+        }
+
+        /// <summary>
+        /// Broadcasts a topic notification for a cup's *current* status, called right
+        /// after any successful status transition — whether triggered explicitly via
+        /// UpdateAsync or automatically (cup fills up, group stage ends, final ends).
+        /// Draft/unrecognized statuses are intentionally silent.
+        /// </summary>
+        private Task NotifyCupStatusChangeAsync(Cup cup)
+        {
+            var (body, type) = cup.Status switch
+            {
+                CupStatus.RegistrationOpen => (
+                    $"Registration is now open for {cup.NameEn}. Join now!",
+                    "cup_registration_open"),
+
+                CupStatus.GroupStage => (
+                    $"The group stage has begun for {cup.NameEn}. Check your matches!",
+                    "cup_group_stage_started"),
+
+                CupStatus.KnockoutStage => (
+                    $"The knockout stage has begun for {cup.NameEn}. Good luck to all qualifiers!",
+                    "cup_knockout_stage_started"),
+
+                CupStatus.Completed => (
+                    $"{cup.NameEn} has concluded. Thanks for a great tournament!",
+                    "cup_completed"),
+
+                CupStatus.Cancelled => (
+                    $"{cup.NameEn} has been cancelled.",
+                    "cup_cancelled"),
+
+                _ => (null, null)
+            };
+
+            if (body is null) return Task.CompletedTask;
+
+            return NotifyActivityTopicAsync(cup, cup.NameEn, body, type!);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        #region  READ OPERATIONS
         // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupDto> GetByIdAsync(int id)
@@ -146,9 +209,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             var teams = await _cupRepo.GetTeamsByCupAsync(cupId);
             return _mapper.Map<IEnumerable<CupTeamDto>>(teams);
         }
-
+        #endregion
         // ─────────────────────────────────────────────────────────────────────
-        // CREATE
+        #region  CREATE
         // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupDto> CreateAsync(
@@ -178,11 +241,16 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             await _cupRepo.CreateAsync(cup);
 
+            // Cups are created as Draft — nobody's registration-eligible yet, so we
+            // don't broadcast here. The "registration open" notification fires from
+            // NotifyCupStatusChangeAsync once an admin actually flips the status
+            // via UpdateAsync.
+
             return _mapper.Map<CupDto>(cup);
         }
-
+        #endregion
         // ─────────────────────────────────────────────────────────────────────
-        // UPDATE
+        #region  UPDATE
         // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupDto> UpdateAsync(
@@ -210,9 +278,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     : dto.Description.Trim();
 
             // ── Status transition ─────────────────────────────────────────────
+            bool statusChanged = false;
             if (dto.Status != null)
             {
                 ValidateStatusTransition(cup.Status, (CupStatus)dto.Status!);
+                statusChanged = cup.Status != (CupStatus)dto.Status!;
                 cup.Status = (CupStatus)dto.Status!;
             }
 
@@ -327,12 +397,14 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             }
 
             await _cupRepo.UpdateAsync(cup);
+
+            if (statusChanged)
+                await NotifyCupStatusChangeAsync(cup);
+
             return _mapper.Map<CupDto>(cup);
         }
-
-        // ─────────────────────────────────────────────────────────────────────
-        // DELETE
-        // ─────────────────────────────────────────────────────────────────────
+        #endregion
+        #region  DELETE  // ─────────────────────────────────────────────────────────────────────
 
         public async Task DeleteAsync(
             int cupId,
@@ -354,9 +426,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             await _cupRepo.DeleteAsync(cupId);
         }
 
+        #endregion
+
         // ─────────────────────────────────────────────────────────────────────
-        // JOIN REQUESTS
-        // ─────────────────────────────────────────────────────────────────────
+        #region JOIN REQUESTS  // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupTeamDto> SubmitJoinRequestAsync(
             int cupId,
@@ -401,13 +474,19 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             };
 
             await _cupRepo.CreateTeamAsync(team);
+
+            // Direct notification to the admin who owns the cup — not a topic
+            // broadcast, since only that admin needs to act on it.
             await notificationService.SendToUserAsync(
-                cup.CreatedByAdminId,
-                title: cup.NameAr,
-                body: "new Request to join cup" + cup.NameAr);
+                userId: cup.CreatedByAdminId,
+                title: cup.NameEn,
+                body: $"A new team has requested to join the \"{cup.NameEn}\" tournament. Review the request to approve or reject it.");
+
             return _mapper.Map<CupTeamDto>(team);
         }
+        #endregion
 
+        #region Accept And REject
         public async Task AcceptJoinRequestAsync(
             int teamId,
             UserRole callerRole,
@@ -442,7 +521,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             var updatedCup = await _cupRepo.AcceptTeamAndIncrementCountAsync(teamId);
 
-            await notificationService.SendToUserAsync(userId: team.CaptainUserId, title: cup.NameAr, body: "your Request to join cup" + cup.NameAr + "is accepted");
+            await notificationService.SendToUserAsync(
+                userId: team.CaptainUserId,
+                title: cup.NameEn,
+                body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been approved. Good luck!");
 
             if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
             {
@@ -451,6 +533,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
                 updatedCup.Status = CupStatus.GroupStage;
                 await _cupRepo.UpdateAsync(updatedCup);
+                await NotifyCupStatusChangeAsync(updatedCup);
             }
         }
 
@@ -477,13 +560,16 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: $"Only pending requests can be rejected. Current status: '{team.Status}'.");
 
             await _cupRepo.RejectTeamAsync(teamId);
-            await notificationService.SendToUserAsync(userId: team.CaptainUserId, title: cup.NameAr, body: "your Request to join cup" + cup.NameAr + "is rejected");
 
-
+            await notificationService.SendToUserAsync(
+                userId: team.CaptainUserId,
+                title: cup.NameEn,
+                body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been declined.");
         }
+        #endregion
 
         // ─────────────────────────────────────────────────────────────────────
-        // MATCH MANAGEMENT
+        #region  MATCH MANAGEMENT
         // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupMatchDto> EnterMatchResultAsync(
@@ -539,6 +625,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     await _cupRepo.SeedKnockoutMatchesAsync(match.CupId);
                     cup.Status = CupStatus.KnockoutStage;
                     await _cupRepo.UpdateAsync(cup);
+                    await NotifyCupStatusChangeAsync(cup);
                 }
             }
             // ── Knockout stage ────────────────────────────────────────────────
@@ -572,8 +659,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     matchId, dto.ScoreA, dto.ScoreB, winnerId,
                     dto.PenaltyScoreA, dto.PenaltyScoreB);
 
-                // ── HERE: advance winner, and if this was a semifinal, route the
-                //          loser into the third-place decider ────────────────────
                 await _cupRepo.AdvanceWinnerToNextRoundAsync(
                     match.CupId, match.Round, match.MatchNumber, winnerId!.Value);
 
@@ -590,6 +675,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 {
                     cup.Status = CupStatus.Completed;
                     await _cupRepo.UpdateAsync(cup);
+                    await NotifyCupStatusChangeAsync(cup);
                 }
             }
 
@@ -625,9 +711,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageAr: "لا يمكن إعادة جدولة مباراة منتهية.",
                     messageEn: "Cannot reschedule a completed match.");
 
-            // ✅ يتحقق إن الموعد الجديد مش متعارض مع حجز أو مباراة تانية على
-            // نفس النشاط — بيستثني المباراة الحالية نفسها عشان تقدر تعدّل
-            // موعدها من غير ما تتصادم مع نفسها.
             var start = TimeOnly.FromDateTime(scheduledAt);
             var end = start.Add(MatchDuration);
 
@@ -646,11 +729,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             match.ScheduledAt = scheduledAt;
             await _cupRepo.UpdateMatchAsync(match);
 
+            // Scheduling a single match is a per-match detail, not a cup-wide
+            // event, so it stays without a topic broadcast. If you want to notify
+            // both teams' captains here, that's a SendToUserAsync x2, not a topic.
+
             return _mapper.Map<CupMatchDto>(match);
         }
-
+        #endregion
         // ─────────────────────────────────────────────────────────────────────
-        // PRIVATE HELPERS
+        #region  PRIVATE HELPERS
         // ─────────────────────────────────────────────────────────────────────
 
         private async Task UpdateStandings(CupMatch match, EnterMatchResultDto dto)
@@ -758,15 +845,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             await _cupRepo.CreateMatchesAsync(matches);
         }
 
-        /// <summary>
-        /// Builds knockout rounds for knockoutTeams = groupCount * teamsAdvancingPerGroup,
-        /// working backward from the Final. Supports any power-of-two bracket size:
-        /// 2 teams -> Final only
-        /// 4 teams -> SemiFinal -> Final
-        /// 8 teams -> QuarterFinal -> SemiFinal -> Final
-        /// 16 teams -> RoundOf16 -> QuarterFinal -> SemiFinal -> Final
-        /// (extend the enum/switch below if you need Round of 32+)
-        /// </summary>
         private static void CreateKnockoutBracket(
     int cupId,
     int groupCount,
@@ -808,15 +886,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     });
                 }
 
-                // Third-place decider only exists if there's a semifinal to draw
-                // losers from (i.e. 4+ knockout teams).
                 if (currentCount == 2)
                 {
                     matches.Add(new CupMatch
                     {
                         CupId = cupId,
                         Stage = CupMatchStage.ThirdPlace,
-                        Round = finalRound, // same round as the Final
+                        Round = finalRound,
                         MatchNumber = 1,
                         Status = CupMatchStatus.Pending
                     });
@@ -867,4 +943,5 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 _ => "none"
             };
     }
+    #endregion
 }

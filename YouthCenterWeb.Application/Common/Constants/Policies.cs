@@ -15,5 +15,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Common.Constants
     {
         public const string YouthCenterId = "YouthCenterId";
         public const string Role = "Role";
+        public const string SessionId = "CurrentSessionId";
+
+
     }
 }

@@ -7,14 +7,8 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net9.0/YouthCenterWeb.MvcApplicationPartsAssemblyInfo.cs
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net9.0/YouthCenterWeb.MvcApplicationPartsAssemblyInfo.cache
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net9.0/YouthCenterWeb.sourcelink.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/web.config
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/appsettings.Development.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/appsettings.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/appsettings.Development.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/appsettings.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/YouthCenterWeb.deps.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/YouthCenterWeb.runtimeconfig.json
-/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/YouthCenterWeb.staticwebassets.endpoints.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/YouthCenterWeb.staticwebassets.runtime.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/YouthCenterWeb.staticwebassets.endpoints.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/YouthCenterWeb
