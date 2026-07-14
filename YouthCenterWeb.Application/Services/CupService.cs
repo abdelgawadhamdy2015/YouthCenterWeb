@@ -5,17 +5,25 @@ using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
     public class CupService(
         ICupRepo cupRepo,
+        INotificationService notificationService,
         IYouthCenterActivityRepo youthCenterActivityRepo,
+        IAvailabilityRepo availabilityRepo, // ✅ new — shared reservation/match conflict check
         IMapper mapper) : ICupService
     {
         private readonly ICupRepo _cupRepo = cupRepo;
         private readonly IYouthCenterActivityRepo _activityRepo = youthCenterActivityRepo;
+        private readonly IAvailabilityRepo _availabilityRepo = availabilityRepo;
         private readonly IMapper _mapper = mapper;
+
+        // Matches don't have a Duration field yet — same 1-hour assumption
+        // used in AvailabilityRepo. Keep these in sync if that ever changes.
+        private static readonly TimeSpan MatchDuration = TimeSpan.FromHours(1);
 
         // ─────────────────────────────────────────────────────────────────────
         // AUTHORIZATION HELPERS
@@ -355,10 +363,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             int userId,
             string teamName)
         {
-            var cup = await _cupRepo.GetByIdAsync(cupId)
-                    ?? throw new NotFoundException(
-                        messageAr: "لم يتم العثور على البطولة المطلوبة.",
-                        messageEn: "Cup not found.");
+            Cup cup = await _cupRepo.GetByIdAsync(cupId)
+                   ?? throw new NotFoundException(
+                       messageAr: "لم يتم العثور على البطولة المطلوبة.",
+                       messageEn: "Cup not found.");
 
             if (cup.Status != CupStatus.RegistrationOpen)
                 throw new BusinessException(
@@ -393,6 +401,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             };
 
             await _cupRepo.CreateTeamAsync(team);
+            await notificationService.SendToUserAsync(
+                cup.CreatedByAdminId,
+                title: cup.NameAr,
+                body: "new Request to join cup" + cup.NameAr);
             return _mapper.Map<CupTeamDto>(team);
         }
 
@@ -430,6 +442,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             var updatedCup = await _cupRepo.AcceptTeamAndIncrementCountAsync(teamId);
 
+            await notificationService.SendToUserAsync(userId: team.CaptainUserId, title: cup.NameAr, body: "your Request to join cup" + cup.NameAr + "is accepted");
+
             if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
             {
                 await GenerateGroupsAsync(updatedCup.Id);
@@ -463,6 +477,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: $"Only pending requests can be rejected. Current status: '{team.Status}'.");
 
             await _cupRepo.RejectTeamAsync(teamId);
+            await notificationService.SendToUserAsync(userId: team.CaptainUserId, title: cup.NameAr, body: "your Request to join cup" + cup.NameAr + "is rejected");
+
+
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -579,6 +596,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             var updated = await _cupRepo.GetMatchByIdAsync(matchId);
             return _mapper.Map<CupMatchDto>(updated);
         }
+
         public async Task<CupMatchDto> ScheduleMatchAsync(
             int matchId,
             DateTime scheduledAt,
@@ -606,6 +624,24 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 throw new BusinessException(
                     messageAr: "لا يمكن إعادة جدولة مباراة منتهية.",
                     messageEn: "Cannot reschedule a completed match.");
+
+            // ✅ يتحقق إن الموعد الجديد مش متعارض مع حجز أو مباراة تانية على
+            // نفس النشاط — بيستثني المباراة الحالية نفسها عشان تقدر تعدّل
+            // موعدها من غير ما تتصادم مع نفسها.
+            var start = TimeOnly.FromDateTime(scheduledAt);
+            var end = start.Add(MatchDuration);
+
+            var conflict = await _availabilityRepo.HasConflictAsync(
+                cup.YouthCenterActivityId,
+                scheduledAt.Date,
+                start,
+                end,
+                excludeMatchId: matchId);
+
+            if (conflict)
+                throw new BusinessException(
+                    messageAr: "هذا الموعد محجوز بالفعل أو به مباراة أخرى مجدولة على نفس النشاط.",
+                    messageEn: "This time slot is already reserved or has another match scheduled on this activity.");
 
             match.ScheduledAt = scheduledAt;
             await _cupRepo.UpdateMatchAsync(match);

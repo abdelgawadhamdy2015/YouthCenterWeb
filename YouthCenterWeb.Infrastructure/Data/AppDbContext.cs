@@ -15,6 +15,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CupGroup> CupGroups { get; set; }
     public DbSet<CupTeam> CupTeams { get; set; }
     public DbSet<CupMatch> CupMatches { get; set; }
+    public DbSet<OtpEntry> OtpEntries { get; set; }
+    public DbSet<DeviceToken> DeviceTokens { get; set; }
+
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

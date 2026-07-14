@@ -13,11 +13,21 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
     public class AuthService(
         IAuthRepo authRepo,
+            IOtpRepo otpRepo,
         IJwtService jwtService) : IAuthService
     {
         // ── Register — public, role locked to User ────────────────────────────
         public async Task<BaseResponse<LoginData>> RegisterAsync(RegisterDto dto)
         {
+            // ── Guard: email must be OTP-verified first ───────────────────────────
+            var emailVerified = await otpRepo.IsVerifiedAsync(dto.Email);
+            if (!emailVerified)
+                return Fail(
+                    "Email is not verified. Please verify your OTP first.",
+                    "البريد الإلكتروني غير موثق، يرجى التحقق من الرمز أولاً"
+                );
+
+            // ── Existing duplicate-email check ────────────────────────────────────
             var existing = await authRepo.GetByEmailAsync(dto.Email);
             if (existing != null)
                 return Fail(Messages.Auth.EmailExistsEn, Messages.Auth.EmailExistsAr);
@@ -28,12 +38,16 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 Name = dto.Name,
                 Mobile = dto.Mobile,
                 Role = UserRole.User,
-                YouthCenterId = null,                   // users have no center
+                YouthCenterId = null,
                 HashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Password)
             };
 
             await authRepo.AddAsync(user);
             await authRepo.SaveChangesAsync();
+
+            // Clean up the OTP entry now that registration is complete
+            await otpRepo.DeleteAllForEmailAsync(dto.Email);
+            await otpRepo.SaveChangesAsync();
 
             return Success(user);
         }

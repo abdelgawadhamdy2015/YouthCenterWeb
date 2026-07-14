@@ -1,4 +1,3 @@
-
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Application.Interfaces;
@@ -11,11 +10,13 @@ using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
     public class ReservationService(
         IReservationRepo repo,
+        IAvailabilityRepo availabilityRepo, // ✅ new — shared reservation/match conflict check
         IPaymentGateway paymentGateway,
         IMapper<Reservation, ReservationDto, CreateReservationDto> mapper)
         : IReservationService
@@ -45,11 +46,14 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             if (role == UserRole.User)
                 dto.UserId = userId;
 
-            var overlap = await repo.HasActiveOverlapAsync(
+            // ✅ يتحقق من تعارض الحجوزات والمباريات مع بعض
+            var conflict = await availabilityRepo.HasConflictAsync(
                 dto.YouthCenterActivityId, dto.Date, dto.StartTime, dto.EndTime);
 
-            if (overlap)
-                throw new BusinessException("This time slot is no longer available.");
+            if (conflict)
+                throw new BusinessException(
+                    messageAr: "هذا الموعد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
+                    messageEn: "This time slot is no longer available — either booked or reserved for a match.");
 
             var entity = mapper.CreateEntity(dto);
             entity.TotalPrice = activity.Price * entity.DurationHours ?? 0;
@@ -188,6 +192,31 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                                    entity.YouthCenterActivity?.YouthCenterId != adminCenterId)
                 throw new ForbiddenException();
 
+            // ✅ لو الموعد أو النشاط اتغير، لازم نتأكد إن المكان الجديد لسه متاح
+            // (الكود الأصلي كان بيحدّث من غير أي فحص تعارض على الإطلاق)
+            var newDate = dto.Date ?? entity.Date;
+            var newStart = dto.StartTime ?? entity.StartTime;
+            var newEnd = dto.EndTime ?? entity.EndTime;
+            var newActivityId = dto.YouthCenterActivityId ?? entity.YouthCenterActivityId;
+
+            bool timeOrActivityChanged =
+                newDate != entity.Date ||
+                newStart != entity.StartTime ||
+                newEnd != entity.EndTime ||
+                newActivityId != entity.YouthCenterActivityId;
+
+            if (timeOrActivityChanged)
+            {
+                var conflict = await availabilityRepo.HasConflictAsync(
+                    newActivityId, newDate, newStart, newEnd,
+                    excludeReservationId: entity.Id);
+
+                if (conflict)
+                    throw new BusinessException(
+                        messageAr: "هذا الموعد الجديد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
+                        messageEn: "The new time slot is no longer available — either booked or reserved for a match.");
+            }
+
             entity = UpdateReservationDto(entity, dto);
 
             repo.Update(entity);
@@ -226,9 +255,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
         public async Task<List<PeakHourDto>?> GetAvailHoursAsync(AvailBookingDto dto)
         {
-
+            // ⚠️ لسه بترجع أوقات الحجوزات بس. لازم تتعدل عشان تحسب المباريات
+            // كمان — راجع الرد الجاي عشان التعديل المطلوب في ReservationRepo.
             return await repo.GetAvailBookingHoursAsync(dto);
-
         }
 
         public async Task<ReservationDto?> LockForPaymentAsync(CreateReservationDto dto, int userId)
@@ -238,12 +267,14 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             dto.UserId = userId;
 
-            // App-level check (fast path, good UX message)
-            var overlap = await repo.HasActiveOverlapAsync(
+            // ✅ App-level check (fast path, good UX message) — reservations + matches
+            var conflict = await availabilityRepo.HasConflictAsync(
                 dto.YouthCenterActivityId, dto.Date, dto.StartTime, dto.EndTime);
 
-            if (overlap)
-                throw new BusinessException("This time slot is no longer available.");
+            if (conflict)
+                throw new BusinessException(
+                    messageAr: "هذا الموعد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
+                    messageEn: "This time slot is no longer available — either booked or reserved for a match.");
 
             var entity = mapper.CreateEntity(dto);
             entity.Status = ReservationStatus.AwaitingPayment;

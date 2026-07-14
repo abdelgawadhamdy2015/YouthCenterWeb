@@ -231,3 +231,11 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.deps.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.runtimeconfig.json
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/publish/YouthCenterWeb.staticwebassets.endpoints.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/FirebaseAdmin.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/Google.Api.Gax.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/Google.Api.Gax.Rest.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/Google.Apis.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/Google.Apis.Auth.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/Google.Apis.Core.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/System.Management.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net10.0/runtimes/win/lib/net7.0/System.Management.dll

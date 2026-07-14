@@ -225,3 +225,11 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/YouthCenterWeb.pdb
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/YouthCenterWeb.genruntimeconfig.cache
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Release/net10.0/ref/YouthCenterWeb.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/FirebaseAdmin.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Google.Api.Gax.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Google.Api.Gax.Rest.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Google.Apis.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Google.Apis.Auth.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/Google.Apis.Core.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/System.Management.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Release/net10.0/runtimes/win/lib/net7.0/System.Management.dll

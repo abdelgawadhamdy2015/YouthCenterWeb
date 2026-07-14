@@ -9,6 +9,12 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Azure.Core.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Azure.Identity.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/BCrypt.Net-Next.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/FirebaseAdmin.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Google.Api.Gax.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Google.Api.Gax.Rest.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Google.Apis.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Google.Apis.Auth.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Google.Apis.Core.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Humanizer.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Microsoft.AspNetCore.Authentication.JwtBearer.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/Microsoft.Bcl.AsyncInterfaces.dll
@@ -52,6 +58,7 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/System.Composition.TypedParts.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/System.Configuration.ConfigurationManager.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/System.IdentityModel.Tokens.Jwt.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/System.Management.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/System.Memory.Data.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/System.Security.Cryptography.ProtectedData.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/cs/Microsoft.CodeAnalysis.resources.dll
@@ -137,3 +144,4 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/runtimes/win-arm64/native/Microsoft.Data.SqlClient.SNI.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/runtimes/win-x64/native/Microsoft.Data.SqlClient.SNI.dll
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/runtimes/win-x86/native/Microsoft.Data.SqlClient.SNI.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/publish/runtimes/win/lib/net7.0/System.Management.dll
