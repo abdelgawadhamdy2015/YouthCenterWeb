@@ -1,14 +1,15 @@
 using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using YouthCenterWeb.Infrastructure.Firebase;
 using YouthCenterWeb.YouthCenterWeb.API.Middleware;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Services;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,6 +63,26 @@ builder.Services.AddSwaggerGen(options =>
 
 #region 🔹 Dependency Injection
 builder.Services.AddIDependencyInjection(builder.Configuration);
+
+// ✅ builder.Configuration بيختار المصدر الصح تلقائيًا (user-secrets محليًا / env variables في production)
+var serviceAccountJson = builder.Configuration["Firebase:ServiceAccountJson"];
+
+if (string.IsNullOrWhiteSpace(serviceAccountJson))
+{
+    throw new InvalidOperationException(
+        "Firebase:ServiceAccountJson configuration value is missing. " +
+        "Set it via 'dotnet user-secrets' locally or as an environment variable in production.");
+}
+
+try
+{
+    FirebaseSetup.InitializeFromJson(serviceAccountJson);
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[STARTUP ERROR] Firebase init failed: {ex.Message}");
+    throw;
+}
 #endregion
 
 #region 🔹 JWT AUTH (CLEAN + OPTIONS BASED)
@@ -163,5 +184,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 #endregion
+
+app.MapHealthChecks("/health"); // GET /health هيرجعلك 200 لو كله تمام
 
 app.Run();

@@ -18,6 +18,9 @@ using YouthCenterWeb.Domain.Entities;
 using System.Text.Json;
 using global::YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
 using Microsoft.Extensions.Options;
+using global::YouthCenterWeb.YouthCenterWeb.Infrastructure.PushNotification;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 public static class DependencyInjection
 {
@@ -60,9 +63,14 @@ public static class DependencyInjection
         services.AddScoped<IMapper<User, UserDto, RegisterDto>, UserMapper>();
         services.AddScoped<IMapper<YouthCenter, YouthCenterDto, CreateYouthCenterDto>, YouthCenterMapper>();
         services.AddScoped<IMapper<YouthCenterActivity, YouthCenterActivityDto, CreateYouthCenterActivityDto>, YouthCenterActivityMapper>();
-        // Replace: services.AddAutoMapper(typeof(CupProfile));
-        // With this:
-        services.AddAutoMapper(cfg => { /* configuration if needed */ }, typeof(CupProfile).Assembly);
+
+        services.AddAutoMapper(cfg => { }, typeof(CupProfile).Assembly);
+
+
+        services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
+        services.AddScoped<IPushNotificationSender, FirebasePushNotificationSender>();
+        services.AddScoped<INotificationService, NotificationService>();
+
         // Repositories
         services.AddScoped<IAuthRepo, AuthRepo>();
         services.AddScoped<IReservationRepo, ReservationRepo>();
@@ -89,7 +97,8 @@ public static class DependencyInjection
         services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
         services.AddScoped<IOtpService, OtpService>();
         services.AddScoped<IEmailService, EmailService>();
-
+        services.AddHealthChecks()
+            .AddCheck<FirebaseHealthCheck>("firebase");
 
         return services;
     }

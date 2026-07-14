@@ -11,6 +11,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
     public class CupService(
         ICupRepo cupRepo,
+        INotificationService notificationService,
         IYouthCenterActivityRepo youthCenterActivityRepo,
         IAvailabilityRepo availabilityRepo, // ✅ new — shared reservation/match conflict check
         IMapper mapper) : ICupService
@@ -362,10 +363,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             int userId,
             string teamName)
         {
-            var cup = await _cupRepo.GetByIdAsync(cupId)
-                    ?? throw new NotFoundException(
-                        messageAr: "لم يتم العثور على البطولة المطلوبة.",
-                        messageEn: "Cup not found.");
+            Cup cup = await _cupRepo.GetByIdAsync(cupId)
+                   ?? throw new NotFoundException(
+                       messageAr: "لم يتم العثور على البطولة المطلوبة.",
+                       messageEn: "Cup not found.");
 
             if (cup.Status != CupStatus.RegistrationOpen)
                 throw new BusinessException(
@@ -400,6 +401,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             };
 
             await _cupRepo.CreateTeamAsync(team);
+            await notificationService.SendToUserAsync(
+                cup.CreatedByAdminId,
+                title: cup.NameAr,
+                body: "new Request to join cup" + cup.NameAr);
             return _mapper.Map<CupTeamDto>(team);
         }
 
@@ -437,6 +442,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             var updatedCup = await _cupRepo.AcceptTeamAndIncrementCountAsync(teamId);
 
+            await notificationService.SendToUserAsync(userId: team.CaptainUserId, title: cup.NameAr, body: "your Request to join cup" + cup.NameAr + "is accepted");
+
             if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
             {
                 await GenerateGroupsAsync(updatedCup.Id);
@@ -470,6 +477,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: $"Only pending requests can be rejected. Current status: '{team.Status}'.");
 
             await _cupRepo.RejectTeamAsync(teamId);
+            await notificationService.SendToUserAsync(userId: team.CaptainUserId, title: cup.NameAr, body: "your Request to join cup" + cup.NameAr + "is rejected");
+
+
         }
 
         // ─────────────────────────────────────────────────────────────────────

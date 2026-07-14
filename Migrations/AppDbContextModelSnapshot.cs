@@ -17,7 +17,7 @@ namespace YouthCenterWeb.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.6")
+                .HasAnnotation("ProductVersion", "8.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -304,6 +304,41 @@ namespace YouthCenterWeb.Migrations
                     b.ToTable("CupTeams", (string)null);
                 });
 
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.DeviceToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("DeviceTokens", (string)null);
+                });
+
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.OtpEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -487,10 +522,12 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
-                    b.Property<double>("Latitude")
+                    b.Property<double?>("Latitude")
+                        .IsRequired()
                         .HasColumnType("float");
 
-                    b.Property<double>("Longitude")
+                    b.Property<double?>("Longitude")
+                        .IsRequired()
                         .HasColumnType("float");
 
                     b.Property<string>("NameAr")
@@ -523,15 +560,18 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int>("ActivityId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsAvailable")
+                    b.Property<bool?>("IsAvailable")
+                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
-                    b.Property<int>("MaxCapacity")
+                    b.Property<int?>("MaxCapacity")
+                        .IsRequired()
                         .HasColumnType("int");
 
-                    b.Property<decimal>("Price")
+                    b.Property<decimal?>("Price")
+                        .IsRequired()
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -640,6 +680,15 @@ namespace YouthCenterWeb.Migrations
                     b.Navigation("Cup");
 
                     b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.DeviceToken", b =>
+                {
+                    b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Reservation", b =>

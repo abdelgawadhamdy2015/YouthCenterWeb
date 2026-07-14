@@ -44,11 +44,18 @@ public class YouthCenterService(
 
         // update only the fields that belong to the caller
         entity.NameAr = dto.NameAr;
+        entity.NameEn = dto.NameEn;
         entity.Address = dto.Address;
         entity.City = dto.City;
         entity.Phone = dto.Phone;
         entity.Email = dto.Email;
         entity.Description = dto.Description;
+        entity.IsActive = dto.IsActive;
+
+        if (dto.Latitude.HasValue)
+            entity.Latitude = dto.Latitude.Value;
+        if (dto.Longitude.HasValue)
+            entity.Longitude = dto.Longitude.Value;
 
         repo.Update(entity);
         await repo.SaveChangesAsync();

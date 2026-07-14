@@ -1,3 +1,5 @@
 publish/
 appsettings.Production.json
 appsettings.json
+*firebase-service-account*.json
+serviceAccountKey.jso
