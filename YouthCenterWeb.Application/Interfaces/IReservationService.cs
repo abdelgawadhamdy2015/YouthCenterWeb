@@ -28,6 +28,9 @@ namespace YouthCenterWeb.Application.Interfaces
 
         // ── الجزء الجديد بتاع الدفع ──────────────────────────────
         Task<ReservationDto?> LockForPaymentAsync(CreateReservationDto dto, int userId);
+        Task<ReservationDto?> PayAgainAsync(
+    int reservationId,
+    int userId);
 
         Task<ReservationDto?> ConfirmPaymentAsync(int reservationId, ConfirmPaymentDto dto);
 
