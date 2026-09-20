@@ -182,18 +182,17 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             var entity = await repo.GetByIdWithRelationsAsync(id)
                           ?? throw new NotFoundException("Reservation", id);
 
-            if (entity.Status != ReservationStatus.Pending)
-                throw new BusinessException("Only Pending reservations can be updated.");
+            // ✅ Allow updates for Pending AND AwaitingPayment reservations
+            if (entity.Status != ReservationStatus.Pending && entity.Status != ReservationStatus.AwaitingPayment)
+                throw new BusinessException("Only Pending or AwaitingPayment reservations can be updated.");
 
             if (role == UserRole.User && entity.UserId != userId)
                 throw new ForbiddenException();
 
             if (role == UserRole.Admin &&
-                                   entity.YouthCenterActivity?.YouthCenterId != adminCenterId)
+                entity.YouthCenterActivity?.YouthCenterId != adminCenterId)
                 throw new ForbiddenException();
 
-            // ✅ لو الموعد أو النشاط اتغير، لازم نتأكد إن المكان الجديد لسه متاح
-            // (الكود الأصلي كان بيحدّث من غير أي فحص تعارض على الإطلاق)
             var newDate = dto.Date ?? entity.Date;
             var newStart = dto.StartTime ?? entity.StartTime;
             var newEnd = dto.EndTime ?? entity.EndTime;
@@ -219,10 +218,40 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             entity = UpdateReservationDto(entity, dto);
 
+            // ✅ Never trust a client-supplied price — recompute from the activity whenever
+            // the activity/time changed, since duration/price may have shifted.
+            if (timeOrActivityChanged)
+            {
+                var activity = await repo.GetYouthCenterActivity(newActivityId)
+                    ?? throw new NotFoundException(messageAr: Messages.Data.NoDataAr, messageEn: Messages.Data.NoDataAr);
+
+                entity.TotalPrice = activity.Price * entity.DurationHours ?? 0;
+            }
+
             repo.Update(entity);
             await repo.SaveChangesAsync();
 
-            return mapper.ToDto(entity);
+            var dtoResult = mapper.ToDto(entity);
+
+            // ✅ If still awaiting payment, issue a fresh payment order/token so the
+            // (possibly updated) amount and merchant reference stay in sync with the gateway.
+            if (entity.Status == ReservationStatus.AwaitingPayment)
+            {
+                var paymentOrder = await paymentGateway.CreatePaymentOrderAsync(
+                    merchantOrderId: entity.Id.ToString(),
+                    amountCents: (int)(entity.TotalPrice * 100));
+
+                if (paymentOrder.PaymentUrl == null)
+                    throw new BusinessException("Failed to create payment order.");
+
+                entity.PaymentTransactionId = paymentOrder.OrderId;
+                repo.Update(entity);
+                await repo.SaveChangesAsync();
+
+                dtoResult.PaymentUrl = paymentOrder.PaymentUrl; // Flutter opens this again with the new token
+            }
+
+            return dtoResult;
         }
 
         private static Reservation UpdateReservationDto(Reservation reservation, UpdateReservationDto dto)
