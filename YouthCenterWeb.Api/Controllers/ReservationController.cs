@@ -143,7 +143,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 
         // ── UPDATE api/reservation/{id} ───────────────────────────────────────
         [Authorize(policy: Policies.RequireAuthenticated)]
-        [HttpPut]
+        [HttpPost("update")]
         public async Task<IActionResult> Update(UpdateReservationDto dto, int id)
         {
             var result = await _service.UpdateReservationAsync(
@@ -292,6 +292,26 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         {
             await _service.FailPaymentAsync(id, dto.Reason);
             return Ok(new BaseResponse<string> { Result = 1 });
+        }
+
+        // ── POST api/reservation/{id}/pay-again ───────────────────────────────
+        [HttpPost("{id}/pay-again")]
+        public async Task<IActionResult> PayAgain(int id)
+        {
+            var result = await _service.PayAgainAsync(
+                id,
+                User.GetUserId());
+
+            return Ok(new BaseResponse<ReservationDto>
+            {
+                Result = 1,
+                Data = result,
+                Alert = new Alert
+                {
+                    MessageAr = "تم إنشاء رابط الدفع بنجاح.",
+                    MessageEn = "Payment link created successfully."
+                }
+            });
         }
     }
 }

@@ -15,7 +15,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         // ⏰ وقت البداية
         [Required]
         public TimeOnly StartTime { get; set; }
+        public string? MerchantOrderId { get; set; }
 
+        public string? PaymentTransactionId { get; set; }
         // ⏰ وقت النهاية
         [Required]
         public TimeOnly EndTime { get; set; }
@@ -50,7 +52,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public DateTime? ReviewedAt { get; set; }
 
         public DateTime? PaymentLockExpiresAt { get; set; }
-        public string? PaymentTransactionId { get; set; }
         public DateTime? PaidAt { get; set; }
         // 🧠 مدة الحجز (مش متخزنة) 
 
