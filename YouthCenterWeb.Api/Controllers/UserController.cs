@@ -222,5 +222,54 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 }
             });
         }
+
+
+        // ── DELETE api/user/profile ──────────────────────────────────────────
+        // Authenticated user — delete their own account
+        [HttpDelete("profile")]
+        public async Task<IActionResult> DeleteProfile()
+        {
+            var userId = User.GetUserId();
+
+            var deleted = await _userService.DeleteAsync(userId);
+
+            if (!deleted)
+                throw new NotFoundException("User", userId);
+
+            return Ok(new BaseResponse<bool>
+            {
+                Result = 1,
+                Data = true,
+                Alert = new Alert
+                {
+                    MessageAr = "تم حذف الحساب بنجاح",
+                    MessageEn = "Account deleted successfully"
+                }
+            });
+        }
+
+        // ── DELETE api/user/{id} ─────────────────────────────────────────────
+        // SuperAdmin — delete another user
+        [HttpDelete("{id:int}")]
+        [Authorize(Policy = Policies.RequireSuperAdmin)]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var deleted = await _userService.DeleteAsync(id);
+
+            if (!deleted)
+                throw new NotFoundException("User", id);
+
+            return Ok(new BaseResponse<bool>
+            {
+                Result = 1,
+                Data = true,
+                Alert = new Alert
+                {
+                    MessageAr = "تم حذف المستخدم بنجاح",
+                    MessageEn = "User deleted successfully"
+                }
+            });
+        }
+
     }
 }

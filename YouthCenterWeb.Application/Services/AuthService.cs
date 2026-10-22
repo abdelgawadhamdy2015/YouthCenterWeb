@@ -54,7 +54,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         {
             var user = await authRepo.GetByEmailAsync(dto.Email);
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.HashedPassword))
+            if (user == null || user.IsDeleted ||
+ !BCrypt.Net.BCrypt.Verify(dto.Password, user.HashedPassword))
                 return Fail("Invalid email or password.", "البريد أو كلمة المرور غير صحيحة");
 
             return await SuccessAsync(user);

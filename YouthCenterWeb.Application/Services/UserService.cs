@@ -19,7 +19,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 u => u.Reservations,
                 u => u.Role!);
 
-            return users.Select(userMapper.ToDto).ToList();
+            return users.Where(u => !u.IsDeleted)
+.Select(userMapper.ToDto).ToList();
         }
 
         public async Task<UserDto?> GetByIdAsync(int id)
@@ -29,8 +30,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                [ u => u.Reservations,
                ]
                 );
-
-            return user != null ? userMapper.ToDto(user) : null;
+            if (user is null || user.IsDeleted)
+                return null;
+            return userMapper.ToDto(user);
         }
 
         public async Task<UserDto?> GetByEmailAsync(string email)
@@ -58,14 +60,26 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             await userRepository.SaveChangesAsync();
             return userMapper.ToDto(user);
         }
-
-        public async Task DeleteAsync(int userId)
+        public async Task<bool> DeleteAsync(int id)
         {
-            var user = await userRepository.GetByIdAsync(userId)
-                ?? throw new NotFoundException("User", userId);
+            var user = await userRepository.GetByIdAsync(id);
 
-            userRepository.Delete(user);          // ← entity passed directly
+            if (user is null || user.IsDeleted)
+                return false;
+
+            user.IsDeleted = true;
+            user.DeletedAt = DateTime.UtcNow;
+
+            // Invalidate the current session if this field is nullable.
+            user.CurrentSessionId = null;
+
+            userRepository.Update(user);
+
             await userRepository.SaveChangesAsync();
+
+            return true;
         }
+
     }
+
 }

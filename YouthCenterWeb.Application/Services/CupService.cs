@@ -893,7 +893,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                         CupId = cupId,
                         Stage = CupMatchStage.ThirdPlace,
                         Round = finalRound,
-                        MatchNumber = 1,
+                        MatchNumber = 2,
                         Status = CupMatchStatus.Pending
                     });
                 }
