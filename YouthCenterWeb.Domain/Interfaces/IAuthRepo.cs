@@ -8,5 +8,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
         Task AddAsync(User user);
         Task SaveChangesAsync();
         Task UpdateSessionAsync(User user, Guid sessionId);
+        Task UpdatePasswordAsync(User user, string hashedPassword);
     }
 }

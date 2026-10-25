@@ -17,7 +17,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CupMatch> CupMatches { get; set; }
     public DbSet<OtpEntry> OtpEntries { get; set; }
     public DbSet<DeviceToken> DeviceTokens { get; set; }
-
+    public DbSet<UserNotification> Notifications { get; set; }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

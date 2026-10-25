@@ -135,5 +135,61 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 Data = null,
                 Alert = new Alert { MessageEn = en, MessageAr = ar }
             };
+
+        public async Task<BaseResponse<object>> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            const string invalidEn = "Invalid or expired verification.";
+            const string invalidAr = "التحقق غير صالح أو منتهي، اطلب كودًا جديدًا.";
+
+            if (string.IsNullOrWhiteSpace(dto.NewPassword) || dto.NewPassword.Length < 8)
+                return FailObj("Password must be at least 8 characters.",
+                               "كلمة المرور يجب ألا تقل عن 8 أحرف.");
+
+            // 1) لازم يكون في OTP موثّق وغير منتهي لهذا الإيميل
+            var verified = await otpRepo.IsVerifiedAsync(dto.Email);
+            var latest = await otpRepo.GetLatestAsync(dto.Email);
+
+            if (!verified || latest is null || !latest.IsVerified || latest.ExpiresAt < DateTime.UtcNow)
+                return FailObj(invalidEn, invalidAr);
+
+            // 2) المستخدم لازم يكون موجود وغير محذوف
+            var user = await authRepo.GetByEmailAsync(dto.Email);
+            if (user is null || user.IsDeleted)
+                return FailObj(invalidEn, invalidAr); // نفس الرسالة: منع كشف الإيميلات
+
+            // 3) غيّر الباسورد + أبطل الجلسات القديمة
+            await authRepo.UpdatePasswordAsync(user, BCrypt.Net.BCrypt.HashPassword(dto.NewPassword));
+
+            // 4) احرق الـ OTP
+            await otpRepo.DeleteAllForEmailAsync(dto.Email);
+            await otpRepo.SaveChangesAsync();
+
+            // 5) اطرد الأجهزة المتصلة
+            await sessionHub.Clients.Group($"user:{user.Id}")
+                .SendAsync("ForceLogout", new
+                {
+                    reason = "password_changed",
+                    at = DateTime.UtcNow
+                });
+
+            return new BaseResponse<object>
+            {
+                Result = 1,
+                Data = null,
+                Alert = new Alert
+                {
+                    MessageEn = "Password updated successfully.",
+                    MessageAr = "تم تحديث كلمة المرور بنجاح."
+                }
+            };
+        }
+
+        private static BaseResponse<object> FailObj(string en, string ar) =>
+            new()
+            {
+                Result = 0,
+                Data = null,
+                Alert = new Alert { MessageEn = en, MessageAr = ar }
+            };
     }
 }

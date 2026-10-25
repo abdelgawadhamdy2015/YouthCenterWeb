@@ -9,5 +9,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public DateTime ExpiresAt { get; set; }
         public int Attempts { get; set; }
         public bool IsVerified { get; set; }
+
     }
 }

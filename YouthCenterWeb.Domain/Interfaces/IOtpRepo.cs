@@ -9,5 +9,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
         Task AddAsync(OtpEntry entry);
         Task DeleteAllForEmailAsync(string email);
         Task SaveChangesAsync();
+        Task<OtpEntry?> GetLatestAnyAsync(string email);
+
     }
 }

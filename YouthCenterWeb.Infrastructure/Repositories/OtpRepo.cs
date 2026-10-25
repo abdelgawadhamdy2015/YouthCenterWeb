@@ -33,5 +33,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
         }
 
         public Task SaveChangesAsync() => _context.SaveChangesAsync();
+        public Task<OtpEntry?> GetLatestAnyAsync(string email) =>
+    _context.OtpEntries
+        .Where(o => o.Email == email)
+        .OrderByDescending(o => o.CreatedAt)
+        .FirstOrDefaultAsync();
     }
 }

@@ -57,4 +57,12 @@ public class AuthController(
         var result = await authService.CreateAdminAsync(dto);
         return Ok(result);
     }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword(ResetPasswordDto dto)
+    {
+        var result = await authService.ResetPasswordAsync(dto);
+        return Ok(result);
+    }
 }

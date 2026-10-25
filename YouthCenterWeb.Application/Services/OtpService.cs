@@ -94,7 +94,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
         public async Task<BaseResponse<object>> VerifyOtpAsync(VerifyOtpDto dto)
         {
-            var entry = await otpRepo.GetLatestAsync(dto.Email);
+            var entry = await otpRepo.GetLatestAnyAsync(dto.Email);
 
             if (entry == null)
             {

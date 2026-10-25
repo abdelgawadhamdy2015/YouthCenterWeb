@@ -11,6 +11,6 @@ public interface IAuthService
     Task<BaseResponse<LoginData>> RegisterAsync(RegisterDto dto);
     Task<BaseResponse<LoginData>> CreateAdminAsync(CreateAdminDto dto);
 
-
+    Task<BaseResponse<object>> ResetPasswordAsync(ResetPasswordDto dto);
 
 }
