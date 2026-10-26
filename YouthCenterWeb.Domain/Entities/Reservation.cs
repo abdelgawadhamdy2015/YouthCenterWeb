@@ -54,7 +54,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public DateTime? PaymentLockExpiresAt { get; set; }
         public DateTime? PaidAt { get; set; }
         // 🧠 مدة الحجز (مش متخزنة) 
-
+        public DateTime? CancelledAt { get; set; }
+        public bool RefundPending { get; set; }   // مدفوع واتلغى، محتاج استرداد يدوي/Paymob
         [NotMapped]
         public decimal DurationHours
         {

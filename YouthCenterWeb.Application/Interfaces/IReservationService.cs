@@ -35,5 +35,7 @@ namespace YouthCenterWeb.Application.Interfaces
         Task<ReservationDto?> ConfirmPaymentAsync(int reservationId, ConfirmPaymentDto dto);
 
         Task FailPaymentAsync(int reservationId, string reason);
+        Task<ReservationDto?> CancelAsync(int id, int userId);
+
     }
 }

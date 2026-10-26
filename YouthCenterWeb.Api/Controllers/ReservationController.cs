@@ -229,6 +229,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 role: User.GetRole()
             );
 
+
+
             return Ok(new BaseResponse<string>
             {
                 Result = 1,
@@ -283,7 +285,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         [HttpPost("{id}/confirm-payment")]
         public async Task<IActionResult> ConfirmPayment(int id, [FromBody] ConfirmPaymentDto dto)
         {
+
             var result = await _service.ConfirmPaymentAsync(id, dto);
+            if (User.GetRole() == UserRole.User && result?.UserId != User.GetUserId())
+                throw new NotFoundException("Reservation", id);
             return Ok(new BaseResponse<ReservationDto> { Result = 1, Data = result });
         }
 
@@ -310,6 +315,22 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
                 {
                     MessageAr = "تم إنشاء رابط الدفع بنجاح.",
                     MessageEn = "Payment link created successfully."
+                }
+            });
+        }
+
+        [HttpPost("{id}/cancel")]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            var result = await _service.CancelAsync(id, User.GetUserId());
+            return Ok(new BaseResponse<ReservationDto>
+            {
+                Result = 1,
+                Data = result,
+                Alert = new Alert
+                {
+                    MessageAr = "تم إلغاء الحجز.",
+                    MessageEn = "Reservation cancelled."
                 }
             });
         }

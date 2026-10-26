@@ -18,6 +18,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         IReservationRepo repo,
         IAvailabilityRepo availabilityRepo,
         IPaymentGateway paymentGateway,
+        INotificationService notifications,
         IMapper<Reservation, ReservationDto, CreateReservationDto> mapper)
         : IReservationService
     {
@@ -50,6 +51,90 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 : mapper.ToDto(entity);
         }
 
+
+        private const int CancelCutoffHours = 2;
+
+        private static readonly TimeZoneInfo CairoTz = ResolveCairoTz();
+        private static TimeZoneInfo ResolveCairoTz()
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById("Africa/Cairo"); }
+            catch { return TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"); }
+        }
+
+        public async Task<ReservationDto?> CancelAsync(int id, int userId)
+        {
+            var r = await repo.GetByIdWithRelationsAsync(id);
+
+            // نفس الرد للغير موجود وللغير تابع للمستخدم
+            if (r is null || r.UserId != userId)
+                throw new NotFoundException("Reservation", id);
+
+            if (r.Status is not (ReservationStatus.Pending
+                              or ReservationStatus.AwaitingPayment
+                              or ReservationStatus.Confirmed))
+            {
+                throw new BusinessException(
+                    messageAr: "لا يمكن إلغاء هذا الحجز.",
+                    messageEn: "This reservation cannot be cancelled.");
+            }
+
+            // التواريخ مخزنة بتوقيت القاهرة، فنقارن بتوقيت القاهرة (مش UTC)
+            var nowCairo = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CairoTz);
+            var start = r.Date.Date + r.StartTime.ToTimeSpan();
+
+            if (start <= nowCairo)
+                throw new BusinessException(
+                    messageAr: "موعد الحجز بدأ بالفعل.",
+                    messageEn: "The reservation has already started.");
+
+            var wasPaid = r.Status == ReservationStatus.Confirmed;
+
+            if (wasPaid && start - nowCairo < TimeSpan.FromHours(CancelCutoffHours))
+                throw new BusinessException(
+                    messageAr: $"لا يمكن إلغاء الحجز المدفوع قبل أقل من {CancelCutoffHours} ساعة من الموعد.",
+                    messageEn: $"A paid reservation cannot be cancelled less than {CancelCutoffHours} hours before it starts.");
+
+            r.Status = ReservationStatus.Cancelled;
+            r.CancelledAt = DateTime.UtcNow;
+            r.PaymentLockExpiresAt = null;
+            r.RejectionReason = "Cancelled by user";
+            r.RefundPending = wasPaid
+                              && r.PaidAt != null
+                              && r.PaymentTransactionId != "MANUAL";
+
+            repo.Update(r);
+            await repo.SaveChangesAsync();
+
+            // ── إشعارات ──────────────────────────────────────────────
+            await notifications.SendToUserAsync(
+                userId: r.UserId,
+                title: "تم إلغاء الحجز",
+                body: r.RefundPending
+                    ? "تم إلغاء حجزك وسيتم مراجعة الاسترداد من إدارة المركز."
+                    : "تم إلغاء حجزك بنجاح."
+                // type: "reservation",
+                // targetId: r.Id
+                );
+
+            var centerId = r.YouthCenterActivity?.YouthCenterId;
+            if (centerId != null)
+            {
+                foreach (var adminId in await repo.GetCenterAdminIdsAsync(centerId.Value))
+                {
+                    await notifications.SendToUserAsync(
+                        userId: adminId,
+                        title: "إلغاء حجز",
+                        body: r.RefundPending
+                            ? $"{r.User?.Name} ألغى حجزًا مدفوعًا بتاريخ {r.Date:yyyy-MM-dd} ويحتاج استرداد."
+                            : $"{r.User?.Name} ألغى حجزًا بتاريخ {r.Date:yyyy-MM-dd}."
+                        // type: "reservation",
+                        // targetId: r.Id
+                        );
+                }
+            }
+
+            return mapper.ToDto(r);
+        }
         // ============================================================
         // CREATE RESERVATION
         // ============================================================
@@ -374,7 +459,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 DateTime.UtcNow;
 
             repo.Update(reservation);
-
+            await notifications.SendToUserAsync(reservation.UserId, "تم تأكيد حجزك",
+                $"تم تأكيد حجزك بتاريخ {reservation.Date:yyyy-MM-dd}.",
+                type: "reservation", targetId: reservation.Id);
             await repo.SaveChangesAsync();
         }
 
@@ -422,7 +509,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 DateTime.UtcNow;
 
             repo.Update(reservation);
-
+            await notifications.SendToUserAsync(reservation.UserId, "تم رفض حجزك",
+                string.IsNullOrWhiteSpace(reason) ? "تم رفض حجزك." : $"تم رفض حجزك: {reason}",
+                type: "reservation", targetId: reservation.Id);
             await repo.SaveChangesAsync();
         }
 
@@ -926,15 +1015,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
             }
 
-            // ========================================================
-            // CASE 2
-            // Existing Paymob order cannot be reused.
-            //
-            // Create a NEW Paymob Order.
-            //
-            // IMPORTANT:
-            // NEW merchantOrderId => no duplicate.
-            // ========================================================
 
             var newMerchantOrderId =
                 $"RES-{reservation.Id}-{Guid.NewGuid():N}";
@@ -1075,7 +1155,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 null;
 
             repo.Update(reservation);
-
+            await notifications.SendToUserAsync(reservation.UserId, "تم الدفع بنجاح",
+                "تم تأكيد حجزك بعد إتمام الدفع.",
+                type: "reservation", targetId: reservation.Id);
             await repo.SaveChangesAsync();
 
             return mapper.ToDto(reservation);

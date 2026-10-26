@@ -191,6 +191,14 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             .ToListAsync();
     }
 
+    public Task<List<int>> GetCenterAdminIdsAsync(int youthCenterId) =>
+        _context.Users
+            .Where(u => u.YouthCenterId == youthCenterId
+                     && u.Role == UserRole.Admin
+                     && !u.IsDeleted)
+            .Select(u => u.Id)
+            .ToListAsync();
+
     /// <summary>
     /// Returns per-hour booking counts for an activity+date, combining BOTH
     /// reservations and scheduled cup matches. This is the single source the

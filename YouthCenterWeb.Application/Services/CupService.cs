@@ -57,21 +57,20 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         /// Always keys off cup.YouthCenterActivityId directly — never the navigation
         /// property, which isn't guaranteed to be loaded.
         /// </summary>
-        private Task NotifyActivityTopicAsync(
-            Cup cup,
-            string title,
-            string body,
-            string notificationType)
+        private async Task NotifyActivityTopicAsync(
+      Cup cup, string title, string body, string eventName)
         {
-            return notificationService.SendToTopicAsync(
-                topic: NotificationTopics.Activity(cup.YouthCenterActivity.ActivityId),
+            var ya = await _activityRepo.GetByIdAsync(cup.YouthCenterActivityId);
+            if (ya is null) return;
+
+            await notificationService.BroadcastToActivityAsync(
+                activityId: ya.ActivityId,
+                topic: NotificationTopics.Activity(ya.ActivityId),
                 title: title,
                 body: body,
-                data: new Dictionary<string, string>
-                {
-                    ["type"] = notificationType,
-                    ["cupId"] = cup.Id.ToString()
-                });
+                type: "cup",
+                targetId: cup.Id,
+                data: new Dictionary<string, string> { ["event"] = eventName });
         }
 
         /// <summary>
@@ -478,10 +477,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             // Direct notification to the admin who owns the cup — not a topic
             // broadcast, since only that admin needs to act on it.
             await notificationService.SendToUserAsync(
-                userId: cup.CreatedByAdminId,
-                title: cup.NameEn,
-                body: $"A new team has requested to join the \"{cup.NameEn}\" tournament. Review the request to approve or reject it.");
-
+    userId: cup.CreatedByAdminId,
+    title: cup.NameEn,
+    body: $"A new team has requested to join ...",
+    type: "cup", targetId: cup.Id);
             return _mapper.Map<CupTeamDto>(team);
         }
         #endregion
@@ -521,11 +520,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             var updatedCup = await _cupRepo.AcceptTeamAndIncrementCountAsync(teamId);
 
-            await notificationService.SendToUserAsync(
-                userId: team.CaptainUserId,
-                title: cup.NameEn,
-                body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been approved. Good luck!");
 
+            await notificationService.SendToUserAsync(
+                userId: cup.CreatedByAdminId,
+                title: cup.NameEn,
+                body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been approved. Good luck!",
+                type: "cup", targetId: cup.Id);
             if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
             {
                 await GenerateGroupsAsync(updatedCup.Id);
@@ -561,6 +561,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             await _cupRepo.RejectTeamAsync(teamId);
 
+            await notificationService.SendToUserAsync(
+                          userId: cup.CreatedByAdminId,
+                          title: cup.NameEn,
+                body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been declined.",
+        type: "cup", targetId: cup.Id);
             await notificationService.SendToUserAsync(
                 userId: team.CaptainUserId,
                 title: cup.NameEn,
