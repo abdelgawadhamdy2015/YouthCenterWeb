@@ -1,4 +1,3 @@
-using System.Formats.Asn1;
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
@@ -14,11 +13,8 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
 {
     private readonly AppDbContext _context = context;
 
-    // Matches don't have a Duration field yet — same 1-hour assumption used
-    // in AvailabilityRepo/CupService. Keep these in sync if that ever changes.
     private static readonly TimeSpan MatchDuration = TimeSpan.FromHours(1);
 
-    // ── shared include chain — one place to maintain ─────────────────────────
     private IQueryable<Reservation> WithRelations() =>
         _context.Reservations
             .Include(x => x.User)
@@ -27,7 +23,7 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             .Include(x => x.YouthCenterActivity)
                 .ThenInclude(x => x!.Activity);
 
-    // ── single query entry point — replaces all the Get*Async overloads ───────
+    // ── queries ───────────────────────────────────────────────────────────────
     public Task<List<Reservation>> GetFiltersReservationsAsync(FilteredReservationDto? dto)
     {
         var query = WithRelations().AsQueryable();
@@ -60,42 +56,49 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
         if (dto?.EndTime != null)
             query = query.Where(x => x.EndTime <= dto.EndTime);
 
+        // ترتيب ثابت قبل الـ Skip/Take (من غيره الترقيم غير مضمون)
+        query = query.OrderByDescending(x => x.Date).ThenByDescending(x => x.StartTime);
+
         if (dto?.PageNumber != null && dto.PageSize != null)
             query = query.Skip((int)((dto.PageNumber - 1) * dto.PageSize))
-                .Take((int)dto.PageSize);
-
+                         .Take((int)dto.PageSize);
 
         return query.ToListAsync();
     }
 
-    // ── single record ─────────────────────────────────────────────────────────
     public Task<Reservation?> GetByIdWithRelationsAsync(int id) =>
         WithRelations().FirstOrDefaultAsync(x => x.Id == id);
 
-    // ── lookup for activity pricing ───────────────────────────────────────────
     public Task<YouthCenterActivity?> GetYouthCenterActivity(int youthCenterActivityId) =>
         _context.YouthCenterActivities
             .Include(y => y.YouthCenter)
             .Include(y => y.Activity)
             .FirstOrDefaultAsync(y => y.Id == youthCenterActivityId);
 
-    // ── write operations ──────────────────────────────────────────────────────
+    public Task<List<int>> GetCenterAdminIdsAsync(int youthCenterId) =>
+        _context.Users
+            .Where(u => u.YouthCenterId == youthCenterId
+                     && u.Role == UserRole.Admin
+                     && !u.IsDeleted)
+            .Select(u => u.Id)
+            .ToListAsync();
+
+    // ── writes ────────────────────────────────────────────────────────────────
     public async Task AddAsync(Reservation entity) =>
         await _context.Reservations.AddAsync(entity);
 
-    // pass the already-loaded entity from the service — no second DB hit
     public void Delete(Reservation entity) =>
         _context.Reservations.Remove(entity);
 
-    // called after Accept / Reject / any status change
     public void Update(Reservation entity) =>
         _context.Reservations.Update(entity);
 
     public Task SaveChangesAsync() =>
         _context.SaveChangesAsync();
 
-
-    public async Task<bool> HasActiveOverlapAsync(int activityId, DateTime date, TimeOnly start, TimeOnly end)
+    // ── availability ──────────────────────────────────────────────────────────
+    public async Task<bool> HasActiveOverlapAsync(
+        int activityId, DateTime date, TimeOnly start, TimeOnly end)
     {
         var now = DateTime.UtcNow;
 
@@ -105,44 +108,42 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             x.StartTime < end && x.EndTime > start &&
             (
                 x.Status == ReservationStatus.Confirmed ||
-                (x.Status == ReservationStatus.AwaitingPayment && x.PaymentLockExpiresAt > now)
+                x.Status == ReservationStatus.Pending ||
+                (x.Status == ReservationStatus.AwaitingPayment &&
+                 x.PaymentLockExpiresAt > now)
             ));
     }
 
-    // Called by a background job every ~1 min, and also opportunistically before any lock attempt
     public async Task ExpireStaleLocksAsync()
     {
         var now = DateTime.UtcNow;
         var stale = await _context.Reservations
-            .Where(x => x.Status == ReservationStatus.AwaitingPayment && x.PaymentLockExpiresAt <= now)
+            .Where(x => x.Status == ReservationStatus.AwaitingPayment &&
+                        x.PaymentLockExpiresAt <= now)
             .ToListAsync();
 
         foreach (var r in stale)
-            r.Status = ReservationStatus.Cancelled; // or remove entirely, your call
+            r.Status = ReservationStatus.Cancelled;
 
         if (stale.Count > 0)
             await _context.SaveChangesAsync();
     }
 
-
+    // ── statistics ────────────────────────────────────────────────────────────
     public async Task<int> GetCount(FilteredReservationDto? dto)
     {
         var query = WithRelations().AsQueryable();
 
         if (dto?.Status != null)
             query = query.Where(x => x.Status == dto.Status);
-
         if (dto?.DateFrom != null)
             query = query.Where(x => x.Date >= dto.DateFrom);
-
         if (dto?.DateTo != null)
             query = query.Where(x => x.Date <= dto.DateTo);
-
         if (dto?.YouthCenterId != null)
-            query = query.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId); // bug fix: was <=
-
+            query = query.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
         if (dto?.UserId != null)
-            query = query.Where(x => x.UserId == dto.UserId); // bug fix: was <=
+            query = query.Where(x => x.UserId == dto.UserId);
 
         return await query.CountAsync();
     }
@@ -152,13 +153,11 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
         var query = WithRelations().AsQueryable();
 
         if (dto?.YouthCenterId != null)
-            query = query.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId); // bug fix: was <=
-
+            query = query.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
         if (dto?.UserId != null)
-            query = query.Where(x => x.UserId == dto.UserId); // bug fix: was <=
-
+            query = query.Where(x => x.UserId == dto.UserId);
         if (dto?.ActivityId != null)
-            query = query.Where(x => x.YouthCenterActivity!.ActivityId == dto.ActivityId); // bug fix: was <=
+            query = query.Where(x => x.YouthCenterActivity!.ActivityId == dto.ActivityId);
 
         return await query.CountAsync();
     }
@@ -169,50 +168,29 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
 
         if (dto?.DateFrom != null)
             query = query.Where(x => x.Date >= dto.DateFrom);
-
         if (dto?.DateTo != null)
             query = query.Where(x => x.Date <= dto.DateTo);
-
         if (dto?.YouthCenterId != null)
             query = query.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
-
         if (dto?.UserId != null)
             query = query.Where(x => x.UserId == dto.UserId);
 
-
         return await query
             .GroupBy(x => x.StartTime.Hour)
-            .Select(g => new PeakHourDto
-            {
-                Hour = g.Key,
-                BookingCount = g.Count()
-            })
+            .Select(g => new PeakHourDto { Hour = g.Key, BookingCount = g.Count() })
             .OrderBy(x => x.Hour)
             .ToListAsync();
     }
 
-    public Task<List<int>> GetCenterAdminIdsAsync(int youthCenterId) =>
-        _context.Users
-            .Where(u => u.YouthCenterId == youthCenterId
-                     && u.Role == UserRole.Admin
-                     && !u.IsDeleted)
-            .Select(u => u.Id)
-            .ToListAsync();
-
     /// <summary>
-    /// Returns per-hour booking counts for an activity+date, combining BOTH
-    /// reservations and scheduled cup matches. This is the single source the
-    /// Flutter app reads for slot availability (reservation flow AND cup
-    /// match scheduling), so a slot taken by either one shows as booked to
-    /// the other — no separate/duplicated logic to drift out of sync.
+    /// عدد الحجوزات لكل ساعة (حجوزات + مباريات مجدولة). Pending بيقفل الساعة.
     /// </summary>
     public async Task<List<PeakHourDto>> GetAvailBookingHoursAsync(AvailBookingDto? dto)
     {
         var query = WithRelations().AsQueryable();
 
         if (dto?.YouthCenterActivityId != null)
-            query = query.Where(x =>
-                x.YouthCenterActivityId == dto.YouthCenterActivityId);
+            query = query.Where(x => x.YouthCenterActivityId == dto.YouthCenterActivityId);
 
         if (dto?.Date != null)
         {
@@ -220,29 +198,26 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             query = query.Where(x => x.Date.Date == targetDate);
         }
 
+        var now = DateTime.UtcNow;
+
         var reservations = await query
-      .Where(x => x.Status == ReservationStatus.Confirmed ||
-                 (x.Status == ReservationStatus.AwaitingPayment && x.PaymentLockExpiresAt > DateTime.UtcNow))
-      .Select(x => new { StartHour = x.StartTime.Hour, EndHour = x.EndTime.Hour })
-      .ToListAsync();
+            .Where(x => x.Status == ReservationStatus.Confirmed ||
+                        x.Status == ReservationStatus.Pending ||
+                        (x.Status == ReservationStatus.AwaitingPayment &&
+                         x.PaymentLockExpiresAt > now))
+            .Select(x => new { StartHour = x.StartTime.Hour, EndHour = x.EndTime.Hour })
+            .ToListAsync();
 
         var hourCounts = reservations
-     .SelectMany(r =>
-     {
-         int start = r.StartHour;
-         int end = r.EndHour == 0 ? 24 : r.EndHour; // treat midnight as 24
+            .SelectMany(r =>
+            {
+                int start = r.StartHour;
+                int end = r.EndHour == 0 ? 24 : r.EndHour;
+                return Enumerable.Range(start, end - start).Select(h => h % 24);
+            })
+            .GroupBy(h => h)
+            .ToDictionary(g => g.Key, g => g.Count());
 
-         return Enumerable.Range(start, end - start)
-                          .Select(hour => hour % 24); // wrap 24 back to 0
-     })
-     .GroupBy(hour => hour)
-     .ToDictionary(
-         g => g.Key,
-         g => g.Count());
-
-        // ── إضافة ساعات المباريات المجدولة على نفس النشاط والتاريخ ──────────
-        // AvailBookingDto.YouthCenterActivityId و Date غير nullable، يبقى
-        // الفحص الوحيد المطلوب هنا هو إن dto نفسه مش null.
         if (dto != null)
         {
             var targetDate = dto.Date.Date;
@@ -262,7 +237,7 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
                 var matchEnd = matchStart + (int)MatchDuration.TotalHours;
 
                 foreach (var hour in Enumerable.Range(matchStart, matchEnd - matchStart)
-                                                .Select(h => h % 24))
+                                               .Select(h => h % 24))
                 {
                     hourCounts[hour] = hourCounts.GetValueOrDefault(hour) + 1;
                 }

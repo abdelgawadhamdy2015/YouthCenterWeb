@@ -58,7 +58,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         /// property, which isn't guaranteed to be loaded.
         /// </summary>
         private async Task NotifyActivityTopicAsync(
-      Cup cup, string title, string body, string eventName)
+    Cup cup, string title, string body, string eventName)
         {
             var ya = await _activityRepo.GetByIdAsync(cup.YouthCenterActivityId);
             if (ya is null) return;
@@ -79,36 +79,31 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         /// UpdateAsync or automatically (cup fills up, group stage ends, final ends).
         /// Draft/unrecognized statuses are intentionally silent.
         /// </summary>
-        private Task NotifyCupStatusChangeAsync(Cup cup)
+        private async Task NotifyCupStatusChangeAsync(Cup cup)
         {
-            var (body, type) = cup.Status switch
+            var (body, eventName) = cup.Status switch
             {
                 CupStatus.RegistrationOpen => (
                     $"Registration is now open for {cup.NameEn}. Join now!",
                     "cup_registration_open"),
-
                 CupStatus.GroupStage => (
                     $"The group stage has begun for {cup.NameEn}. Check your matches!",
                     "cup_group_stage_started"),
-
                 CupStatus.KnockoutStage => (
                     $"The knockout stage has begun for {cup.NameEn}. Good luck to all qualifiers!",
                     "cup_knockout_stage_started"),
-
                 CupStatus.Completed => (
                     $"{cup.NameEn} has concluded. Thanks for a great tournament!",
                     "cup_completed"),
-
                 CupStatus.Cancelled => (
                     $"{cup.NameEn} has been cancelled.",
                     "cup_cancelled"),
-
                 _ => (null, null)
             };
 
-            if (body is null) return Task.CompletedTask;
+            if (body is null) return;
 
-            return NotifyActivityTopicAsync(cup, cup.NameEn, body, type!);
+            await NotifyActivityTopicAsync(cup, cup.NameEn, body, eventName!);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -477,10 +472,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             // Direct notification to the admin who owns the cup — not a topic
             // broadcast, since only that admin needs to act on it.
             await notificationService.SendToUserAsync(
-    userId: cup.CreatedByAdminId,
-    title: cup.NameEn,
-    body: $"A new team has requested to join ...",
-    type: "cup", targetId: cup.Id);
+     userId: cup.CreatedByAdminId,
+     title: cup.NameEn,
+     body: $"A new team has requested to join the \"{cup.NameEn}\" tournament. Review the request to approve or reject it.",
+     type: "cup", targetId: cup.Id);
             return _mapper.Map<CupTeamDto>(team);
         }
         #endregion
@@ -522,10 +517,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
 
             await notificationService.SendToUserAsync(
-                userId: cup.CreatedByAdminId,
-                title: cup.NameEn,
-                body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been approved. Good luck!",
-                type: "cup", targetId: cup.Id);
+     userId: team.CaptainUserId,
+     title: cup.NameEn,
+     body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been approved. Good luck!",
+     type: "cup", targetId: cup.Id);
             if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
             {
                 await GenerateGroupsAsync(updatedCup.Id);
@@ -562,14 +557,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             await _cupRepo.RejectTeamAsync(teamId);
 
             await notificationService.SendToUserAsync(
-                          userId: cup.CreatedByAdminId,
-                          title: cup.NameEn,
-                body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been declined.",
-        type: "cup", targetId: cup.Id);
-            await notificationService.SendToUserAsync(
-                userId: team.CaptainUserId,
-                title: cup.NameEn,
-                body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been declined.");
+     userId: team.CaptainUserId,
+     title: cup.NameEn,
+     body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been declined.",
+     type: "cup", targetId: cup.Id);
         }
         #endregion
 

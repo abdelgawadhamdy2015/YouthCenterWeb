@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("YouthCenterWeb")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b50c7789652fc20dfdee4d3736d75836af917c41")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3cc163e25c4670aa2283ce41594640ccc7b41688")]
 [assembly: System.Reflection.AssemblyProductAttribute("YouthCenterWeb")]
 [assembly: System.Reflection.AssemblyTitleAttribute("YouthCenterWeb")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

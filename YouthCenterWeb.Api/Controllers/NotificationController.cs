@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Extentions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
+using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 
 namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
 {
@@ -16,12 +17,18 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll() =>
             Ok(new BaseResponse<List<NotificationDto>>
-            { Result = 1, Data = await service.GetMineAsync(UserId) });
+            {
+                Result = 1,
+                Data = await service.GetMineAsync(UserId)
+            });
 
         [HttpGet("unread-count")]
         public async Task<IActionResult> UnreadCount() =>
             Ok(new BaseResponse<int>
-            { Result = 1, Data = await service.GetUnreadCountAsync(UserId) });
+            {
+                Result = 1,
+                Data = await service.GetUnreadCountAsync(UserId)
+            });
 
         [HttpPost("{id}/read")]
         public async Task<IActionResult> MarkRead(int id)

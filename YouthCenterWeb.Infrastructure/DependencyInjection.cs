@@ -97,6 +97,8 @@ public static class DependencyInjection
         services.AddHealthChecks()
             .AddCheck<FirebaseHealthCheck>("firebase");
 
+        // notification
+        services.AddScoped<IUserNotificationRepo, UserNotificationRepo>();
         return services;
     }
 }

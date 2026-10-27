@@ -1,16 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.Application.Common.Constants;
-using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
-using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
-using YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
@@ -19,47 +16,219 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         IAvailabilityRepo availabilityRepo,
         IPaymentGateway paymentGateway,
         INotificationService notifications,
+        IConfiguration config,
         IMapper<Reservation, ReservationDto, CreateReservationDto> mapper)
         : IReservationService
     {
-        // ============================================================
-        // GET RESERVATIONS
-        // ============================================================
-
-        public async Task<List<ReservationDto>> GetReservationsAsync(
-            FilteredReservationDto? filter)
-        {
-            var reservations =
-                await repo.GetFiltersReservationsAsync(filter);
-
-            return reservations
-                .Select(mapper.ToDto)
-                .ToList();
-        }
-
-        // ============================================================
-        // GET BY ID
-        // ============================================================
-
-        public async Task<ReservationDto?> GetByIdAsync(int id)
-        {
-            var entity =
-                await repo.GetByIdWithRelationsAsync(id);
-
-            return entity == null
-                ? null
-                : mapper.ToDto(entity);
-        }
-
-
         private const int CancelCutoffHours = 2;
 
+        // الدفع الإلكتروني: يتحكم فيه appsettings → Payments:Enabled
+        private bool PaymentsEnabled => config.GetValue<bool>("Payments:Enabled");
+
         private static readonly TimeZoneInfo CairoTz = ResolveCairoTz();
+
         private static TimeZoneInfo ResolveCairoTz()
         {
             try { return TimeZoneInfo.FindSystemTimeZoneById("Africa/Cairo"); }
             catch { return TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"); }
         }
+
+        private static int ToCents(decimal price) =>
+            checked((int)Math.Round(price * 100m, MidpointRounding.AwayFromZero));
+
+        // ============================================================
+        // NOTIFICATION HELPERS
+        // ============================================================
+
+        private Task NotifyUserAsync(Reservation r, string title, string body) =>
+            notifications.SendToUserAsync(
+                userId: r.UserId,
+                title: title,
+                body: body,
+                type: "reservation",
+                targetId: r.Id);
+
+        private async Task NotifyCenterAdminsAsync(
+            int? youthCenterId, int reservationId, string title, string body)
+        {
+            if (youthCenterId is null) return;
+
+            foreach (var adminId in await repo.GetCenterAdminIdsAsync(youthCenterId.Value))
+            {
+                await notifications.SendToUserAsync(
+                    userId: adminId,
+                    title: title,
+                    body: body,
+                    type: "reservation",
+                    targetId: reservationId);
+            }
+        }
+
+        // ============================================================
+        // GET
+        // ============================================================
+
+        public async Task<List<ReservationDto>> GetReservationsAsync(FilteredReservationDto? filter)
+        {
+            var reservations = await repo.GetFiltersReservationsAsync(filter);
+            return reservations.Select(mapper.ToDto).ToList();
+        }
+
+        public async Task<ReservationDto?> GetByIdAsync(int id)
+        {
+            var entity = await repo.GetByIdWithRelationsAsync(id);
+            return entity == null ? null : mapper.ToDto(entity);
+        }
+
+        // نسخة بفحص الملكية: اللاعب يشوف حجزه فقط، والأدمن حجوزات مركزه فقط
+        public async Task<ReservationDto?> GetByIdSecuredAsync(
+            int id, int userId, UserRole role, int? adminCenterId)
+        {
+            var entity = await repo.GetByIdWithRelationsAsync(id);
+            if (entity is null) return null;
+
+            if (role == UserRole.User && entity.UserId != userId) return null;
+
+            if (role == UserRole.Admin &&
+                entity.YouthCenterActivity?.YouthCenterId != adminCenterId)
+                return null;
+
+            return mapper.ToDto(entity);
+        }
+
+        // ============================================================
+        // CREATE
+        // ============================================================
+
+        public async Task<ReservationDto?> CreateReservationAsync(
+            CreateReservationDto dto,
+            int userId,
+            UserRole role,
+            int? adminCenterId)
+        {
+            var activity = await repo.GetYouthCenterActivity(dto.YouthCenterActivityId)
+                ?? throw new NotFoundException(
+                    messageAr: Messages.Data.NoDataAr,
+                    messageEn: Messages.Data.NoDataAr);
+
+            if (role == UserRole.Admin && activity.YouthCenterId != adminCenterId)
+                throw new ForbiddenException("Activity does not belong to your center");
+
+            if (role == UserRole.User)
+                dto.UserId = userId;
+
+            var conflict = await availabilityRepo.HasConflictAsync(
+                dto.YouthCenterActivityId, dto.Date, dto.StartTime, dto.EndTime);
+
+            if (conflict)
+            {
+                throw new BusinessException(
+                    messageAr: "هذا الموعد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
+                    messageEn: "This time slot is no longer available — either booked or reserved for a match.");
+            }
+
+            var entity = mapper.CreateEntity(dto);
+
+            // السعر دايمًا من السيرفر
+            entity.TotalPrice = activity.Price * entity.DurationHours ?? 0;
+
+            var isStaff = role == UserRole.Admin || role == UserRole.SuperAdmin;
+            var usePayment = !isStaff && PaymentsEnabled;
+
+            if (isStaff)
+            {
+                entity.Status = ReservationStatus.Confirmed;
+                entity.PaidAt = DateTime.UtcNow;
+                entity.PaymentTransactionId = "MANUAL";
+                entity.ReviewedBy = userId;
+                entity.ReviewedAt = DateTime.UtcNow;
+            }
+            else if (usePayment)
+            {
+                entity.Status = ReservationStatus.AwaitingPayment;
+                entity.PaymentLockExpiresAt = DateTime.UtcNow.AddMinutes(10);
+            }
+            else
+            {
+                // الدفع متوقف مؤقتًا: الحجز ينتظر موافقة الأدمن
+                entity.Status = ReservationStatus.Pending;
+            }
+
+            try
+            {
+                await repo.AddAsync(entity);
+                await repo.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                throw new BusinessException("This time slot was just taken by another user.");
+            }
+
+            // ── دفع إلكتروني ─────────────────────────────────────
+            if (usePayment)
+            {
+                var merchantOrderId = $"RES-{entity.Id}-{Guid.NewGuid():N}";
+
+                try
+                {
+                    var paymentOrder = await paymentGateway.CreatePaymentOrderAsync(
+                        merchantOrderId: merchantOrderId,
+                        amountCents: ToCents(entity.TotalPrice));
+
+                    if (string.IsNullOrWhiteSpace(paymentOrder.PaymentUrl))
+                    {
+                        throw new BusinessException(
+                            messageAr: "تعذر إنشاء رابط الدفع.",
+                            messageEn: "Failed to create payment URL.");
+                    }
+
+                    entity.MerchantOrderId = merchantOrderId;
+                    entity.PaymentTransactionId = paymentOrder.OrderId;
+
+                    repo.Update(entity);
+                    await repo.SaveChangesAsync();
+
+                    var dtoResult = mapper.ToDto(entity);
+                    dtoResult.PaymentUrl = paymentOrder.PaymentUrl;
+                    return dtoResult;
+                }
+                catch (PaymobPaymentGateway.PaymobException ex)
+                {
+                    Console.WriteLine($"Paymob Create Error [{ex.StatusCode}]: {ex.ResponseBody}");
+                    throw new BusinessException(
+                        messageAr: "تعذر إنشاء عملية الدفع حالياً. يرجى المحاولة مرة أخرى.",
+                        messageEn: "Unable to create the payment order. Please try again.");
+                }
+                catch (HttpRequestException ex)
+                {
+                    Console.WriteLine($"Paymob HTTP Error: {ex.Message}");
+                    throw new BusinessException(
+                        messageAr: "تعذر الاتصال بخدمة الدفع حالياً.",
+                        messageEn: "Unable to connect to the payment service.");
+                }
+            }
+
+            // ── حجز بدون دفع (Pending أو أدمن) ─────────────────────
+            entity.YouthCenterActivity = activity;
+
+            if (entity.Status == ReservationStatus.Pending)
+            {
+                await NotifyUserAsync(entity,
+                    "تم استلام طلب الحجز",
+                    "طلب حجزك قيد المراجعة من إدارة المركز.");
+
+                await NotifyCenterAdminsAsync(
+                    activity.YouthCenterId, entity.Id,
+                    "طلب حجز جديد",
+                    $"طلب حجز جديد بتاريخ {entity.Date:yyyy-MM-dd} في انتظار موافقتك.");
+            }
+
+            return mapper.ToDto(entity);
+        }
+
+        // ============================================================
+        // CANCEL (by the player)
+        // ============================================================
 
         public async Task<ReservationDto?> CancelAsync(int id, int userId)
         {
@@ -78,21 +247,24 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: "This reservation cannot be cancelled.");
             }
 
-            // التواريخ مخزنة بتوقيت القاهرة، فنقارن بتوقيت القاهرة (مش UTC)
             var nowCairo = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CairoTz);
             var start = r.Date.Date + r.StartTime.ToTimeSpan();
 
             if (start <= nowCairo)
+            {
                 throw new BusinessException(
                     messageAr: "موعد الحجز بدأ بالفعل.",
                     messageEn: "The reservation has already started.");
+            }
 
             var wasPaid = r.Status == ReservationStatus.Confirmed;
 
             if (wasPaid && start - nowCairo < TimeSpan.FromHours(CancelCutoffHours))
+            {
                 throw new BusinessException(
-                    messageAr: $"لا يمكن إلغاء الحجز المدفوع قبل أقل من {CancelCutoffHours} ساعة من الموعد.",
-                    messageEn: $"A paid reservation cannot be cancelled less than {CancelCutoffHours} hours before it starts.");
+                    messageAr: $"لا يمكن إلغاء الحجز المؤكد قبل أقل من {CancelCutoffHours} ساعة من الموعد.",
+                    messageEn: $"A confirmed reservation cannot be cancelled less than {CancelCutoffHours} hours before it starts.");
+            }
 
             r.Status = ReservationStatus.Cancelled;
             r.CancelledAt = DateTime.UtcNow;
@@ -105,292 +277,38 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             repo.Update(r);
             await repo.SaveChangesAsync();
 
-            // ── إشعارات ──────────────────────────────────────────────
-            await notifications.SendToUserAsync(
-                userId: r.UserId,
-                title: "تم إلغاء الحجز",
-                body: r.RefundPending
+            await NotifyUserAsync(r,
+                "تم إلغاء الحجز",
+                r.RefundPending
                     ? "تم إلغاء حجزك وسيتم مراجعة الاسترداد من إدارة المركز."
-                    : "تم إلغاء حجزك بنجاح."
-                // type: "reservation",
-                // targetId: r.Id
-                );
+                    : "تم إلغاء حجزك بنجاح.");
 
-            var centerId = r.YouthCenterActivity?.YouthCenterId;
-            if (centerId != null)
-            {
-                foreach (var adminId in await repo.GetCenterAdminIdsAsync(centerId.Value))
-                {
-                    await notifications.SendToUserAsync(
-                        userId: adminId,
-                        title: "إلغاء حجز",
-                        body: r.RefundPending
-                            ? $"{r.User?.Name} ألغى حجزًا مدفوعًا بتاريخ {r.Date:yyyy-MM-dd} ويحتاج استرداد."
-                            : $"{r.User?.Name} ألغى حجزًا بتاريخ {r.Date:yyyy-MM-dd}."
-                        // type: "reservation",
-                        // targetId: r.Id
-                        );
-                }
-            }
+            await NotifyCenterAdminsAsync(
+                r.YouthCenterActivity?.YouthCenterId, r.Id,
+                "إلغاء حجز",
+                r.RefundPending
+                    ? $"{r.User?.Name} ألغى حجزًا مدفوعًا بتاريخ {r.Date:yyyy-MM-dd} ويحتاج استرداد."
+                    : $"{r.User?.Name} ألغى حجزًا بتاريخ {r.Date:yyyy-MM-dd}.");
 
             return mapper.ToDto(r);
-        }
-        // ============================================================
-        // CREATE RESERVATION
-        // ============================================================
-
-        public async Task<ReservationDto?> CreateReservationAsync(
-            CreateReservationDto dto,
-            int userId,
-            UserRole role,
-            int? adminCenterId)
-        {
-            var activity =
-                await repo.GetYouthCenterActivity(
-                    dto.YouthCenterActivityId)
-                ?? throw new NotFoundException(
-                    messageAr: Messages.Data.NoDataAr,
-                    messageEn: Messages.Data.NoDataAr);
-
-            // --------------------------------------------------------
-            // ADMIN CENTER VALIDATION
-            // --------------------------------------------------------
-
-            if (role == UserRole.Admin &&
-                activity.YouthCenterId != adminCenterId)
-            {
-                throw new ForbiddenException(
-                    "Activity does not belong to your center");
-            }
-
-            // --------------------------------------------------------
-            // USER ID
-            // --------------------------------------------------------
-
-            if (role == UserRole.User)
-                dto.UserId = userId;
-
-            // --------------------------------------------------------
-            // AVAILABILITY CHECK
-            // Reservations + Matches
-            // --------------------------------------------------------
-
-            var conflict =
-                await availabilityRepo.HasConflictAsync(
-                    dto.YouthCenterActivityId,
-                    dto.Date,
-                    dto.StartTime,
-                    dto.EndTime);
-
-            if (conflict)
-            {
-                throw new BusinessException(
-                    messageAr:
-                        "هذا الموعد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
-                    messageEn:
-                        "This time slot is no longer available — either booked or reserved for a match.");
-            }
-
-            // --------------------------------------------------------
-            // CREATE ENTITY
-            // --------------------------------------------------------
-
-            var entity =
-                mapper.CreateEntity(dto);
-
-            // IMPORTANT:
-            // Never trust the price coming from the client.
-            entity.TotalPrice =
-                activity.Price * entity.DurationHours ?? 0;
-
-            // --------------------------------------------------------
-            // ADMIN / SUPER ADMIN
-            // Manual confirmation
-            // --------------------------------------------------------
-
-            if (role == UserRole.Admin ||
-                role == UserRole.SuperAdmin)
-            {
-                entity.Status =
-                    ReservationStatus.Confirmed;
-
-                entity.PaidAt =
-                    DateTime.UtcNow;
-
-                entity.PaymentTransactionId =
-                    "MANUAL";
-
-                entity.ReviewedBy =
-                    userId;
-
-                entity.ReviewedAt =
-                    DateTime.UtcNow;
-            }
-            else
-            {
-                // ----------------------------------------------------
-                // NORMAL USER
-                // ----------------------------------------------------
-
-                entity.Status =
-                    ReservationStatus.AwaitingPayment;
-
-                entity.PaymentLockExpiresAt =
-                    DateTime.UtcNow.AddMinutes(10);
-            }
-
-            // --------------------------------------------------------
-            // SAVE RESERVATION FIRST
-            // We need entity.Id before creating Paymob order.
-            // --------------------------------------------------------
-
-            try
-            {
-                await repo.AddAsync(entity);
-                await repo.SaveChangesAsync();
-            }
-            catch (DbUpdateException)
-            {
-                throw new BusinessException(
-                    "This time slot was just taken by another user.");
-            }
-
-            // ========================================================
-            // USER PAYMENT
-            // ========================================================
-
-            if (role == UserRole.User)
-            {
-                var amountCents =
-                    checked(
-                        (int)Math.Round(
-                            entity.TotalPrice * 100m,
-                            MidpointRounding.AwayFromZero));
-
-                // IMPORTANT:
-                // Generate merchant order ID ONCE.
-                //
-                // Do NOT use entity.Id directly.
-                //
-                // Example:
-                // RES-20-8c6f...
-                //
-                // This value is saved in Reservation and reused
-                // for tracing this payment attempt.
-                var merchantOrderId =
-                    $"RES-{entity.Id}-{Guid.NewGuid():N}";
-
-                try
-                {
-                    var paymentOrder =
-                        await paymentGateway.CreatePaymentOrderAsync(
-                            merchantOrderId:
-                                merchantOrderId,
-                            amountCents:
-                                amountCents);
-
-                    if (string.IsNullOrWhiteSpace(
-                            paymentOrder.PaymentUrl))
-                    {
-                        throw new BusinessException(
-                            messageAr:
-                                "تعذر إنشاء رابط الدفع.",
-                            messageEn:
-                                "Failed to create payment URL.");
-                    }
-
-                    // ------------------------------------------------
-                    // Save payment information ONLY after Paymob
-                    // successfully creates the order.
-                    // ------------------------------------------------
-
-                    entity.MerchantOrderId =
-                        merchantOrderId;
-
-                    entity.PaymentTransactionId =
-                        paymentOrder.OrderId;
-
-                    repo.Update(entity);
-
-                    await repo.SaveChangesAsync();
-
-                    var dtoResult =
-                        mapper.ToDto(entity);
-
-                    dtoResult.PaymentUrl =
-                        paymentOrder.PaymentUrl;
-
-                    return dtoResult;
-                }
-                catch (
-                    PaymobPaymentGateway.PaymobException ex)
-                {
-                    Console.WriteLine(
-                        $"Paymob Create Error " +
-                        $"[{ex.StatusCode}]: " +
-                        $"{ex.ResponseBody}");
-
-                    // Keep reservation AwaitingPayment.
-                    // User can retry later.
-                    throw new BusinessException(
-                        messageAr:
-                            "تعذر إنشاء عملية الدفع حالياً. يرجى المحاولة مرة أخرى.",
-                        messageEn:
-                            "Unable to create the payment order. Please try again.");
-                }
-                catch (HttpRequestException ex)
-                {
-                    Console.WriteLine(
-                        $"Paymob HTTP Error: {ex.Message}");
-
-                    // Keep reservation AwaitingPayment.
-                    throw new BusinessException(
-                        messageAr:
-                            "تعذر الاتصال بخدمة الدفع حالياً.",
-                        messageEn:
-                            "Unable to connect to the payment service.");
-                }
-            }
-
-            // ========================================================
-            // ADMIN / SUPER ADMIN RESULT
-            // ========================================================
-
-            var youthCenterActivity =
-                await repo.GetYouthCenterActivity(
-                    entity.YouthCenterActivityId);
-
-            entity.YouthCenterActivity =
-                youthCenterActivity;
-
-            return mapper.ToDto(entity);
         }
 
         // ============================================================
         // DELETE
         // ============================================================
 
-        public async Task DeleteAsync(
-            int id,
-            int userId,
-            UserRole role,
-            int? adminCenterId)
+        public async Task DeleteAsync(int id, int userId, UserRole role, int? adminCenterId)
         {
-            var reservation =
-                await repo.GetByIdWithRelationsAsync(id)
-                ?? throw new NotFoundException(
-                    "Reservation",
-                    id);
+            var reservation = await repo.GetByIdWithRelationsAsync(id)
+                ?? throw new NotFoundException("Reservation", id);
 
             if (role == UserRole.User)
             {
                 if (reservation.UserId != userId)
                     throw new ForbiddenException();
 
-                var canDelete =
-                    reservation.Status is
-                        ReservationStatus.Pending
-                        or ReservationStatus.Completed;
+                var canDelete = reservation.Status is
+                    ReservationStatus.Pending or ReservationStatus.Completed;
 
                 if (!canDelete)
                 {
@@ -400,14 +318,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             }
             else if (role == UserRole.Admin)
             {
-                if (reservation.YouthCenterActivity?.YouthCenterId
-                    != adminCenterId)
-                {
+                if (reservation.YouthCenterActivity?.YouthCenterId != adminCenterId)
                     throw new ForbiddenException();
-                }
 
-                if (reservation.Status !=
-                    ReservationStatus.Completed)
+                if (reservation.Status != ReservationStatus.Completed)
                 {
                     throw new BusinessException(
                         "Admin can only delete Completed reservations.");
@@ -415,108 +329,67 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             }
 
             repo.Delete(reservation);
-
             await repo.SaveChangesAsync();
         }
 
         // ============================================================
-        // ACCEPT
+        // ACCEPT / REJECT
         // ============================================================
 
-        public async Task AcceptAsync(
-            int id,
-            int reviewedBy,
-            int? adminCenterId,
-            UserRole role)
+        public async Task AcceptAsync(int id, int reviewedBy, int? adminCenterId, UserRole role)
         {
-            var reservation =
-                await repo.GetByIdWithRelationsAsync(id)
-                ?? throw new NotFoundException(
-                    "Reservation",
-                    id);
+            var reservation = await repo.GetByIdWithRelationsAsync(id)
+                ?? throw new NotFoundException("Reservation", id);
 
             if (role == UserRole.Admin &&
-                reservation.YouthCenterActivity?.YouthCenterId
-                != adminCenterId)
-            {
+                reservation.YouthCenterActivity?.YouthCenterId != adminCenterId)
                 throw new ForbiddenException();
-            }
 
-            if (reservation.Status !=
-                ReservationStatus.Pending)
-            {
-                throw new BusinessException(
-                    "Only Pending reservations can be accepted.");
-            }
+            if (reservation.Status != ReservationStatus.Pending)
+                throw new BusinessException("Only Pending reservations can be accepted.");
 
-            reservation.Status =
-                ReservationStatus.Confirmed;
-
-            reservation.ReviewedBy =
-                reviewedBy;
-
-            reservation.ReviewedAt =
-                DateTime.UtcNow;
+            reservation.Status = ReservationStatus.Confirmed;
+            reservation.ReviewedBy = reviewedBy;
+            reservation.ReviewedAt = DateTime.UtcNow;
 
             repo.Update(reservation);
-            await notifications.SendToUserAsync(reservation.UserId, "تم تأكيد حجزك",
-                $"تم تأكيد حجزك بتاريخ {reservation.Date:yyyy-MM-dd}.",
-                type: "reservation", targetId: reservation.Id);
             await repo.SaveChangesAsync();
-        }
 
-        // ============================================================
-        // REJECT
-        // ============================================================
+            await NotifyUserAsync(reservation,
+                "تم تأكيد حجزك",
+                $"تم تأكيد حجزك بتاريخ {reservation.Date:yyyy-MM-dd}.");
+        }
 
         public async Task RejectAsync(
-            int id,
-            string reason,
-            int reviewedBy,
-            int? adminCenterId,
-            UserRole role)
+            int id, string reason, int reviewedBy, int? adminCenterId, UserRole role)
         {
-            var reservation =
-                await repo.GetByIdWithRelationsAsync(id)
-                ?? throw new NotFoundException(
-                    "Reservation",
-                    id);
+            var reservation = await repo.GetByIdWithRelationsAsync(id)
+                ?? throw new NotFoundException("Reservation", id);
 
             if (role == UserRole.Admin &&
-                reservation.YouthCenterActivity?.YouthCenterId
-                != adminCenterId)
-            {
+                reservation.YouthCenterActivity?.YouthCenterId != adminCenterId)
                 throw new ForbiddenException();
-            }
 
-            if (reservation.Status !=
-                ReservationStatus.Pending)
-            {
-                throw new BusinessException(
-                    "Only Pending reservations can be rejected.");
-            }
+            if (reservation.Status != ReservationStatus.Pending)
+                throw new BusinessException("Only Pending reservations can be rejected.");
 
-            reservation.Status =
-                ReservationStatus.Cancelled;
-
-            reservation.RejectionReason =
-                reason;
-
-            reservation.ReviewedBy =
-                reviewedBy;
-
-            reservation.ReviewedAt =
-                DateTime.UtcNow;
+            reservation.Status = ReservationStatus.Cancelled;
+            reservation.RejectionReason = reason;
+            reservation.ReviewedBy = reviewedBy;
+            reservation.ReviewedAt = DateTime.UtcNow;
 
             repo.Update(reservation);
-            await notifications.SendToUserAsync(reservation.UserId, "تم رفض حجزك",
-                string.IsNullOrWhiteSpace(reason) ? "تم رفض حجزك." : $"تم رفض حجزك: {reason}",
-                type: "reservation", targetId: reservation.Id);
             await repo.SaveChangesAsync();
+
+            await NotifyUserAsync(reservation,
+                "تم رفض حجزك",
+                string.IsNullOrWhiteSpace(reason)
+                    ? "تم رفض حجزك."
+                    : $"تم رفض حجزك: {reason}");
         }
 
         // ============================================================
-        // UPDATE RESERVATION
+        // UPDATE
         // ============================================================
 
         public async Task<ReservationDto?> UpdateReservationAsync(
@@ -526,298 +399,128 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             UserRole role,
             int? adminCenterId)
         {
-            var entity =
-                await repo.GetByIdWithRelationsAsync(id)
-                ?? throw new NotFoundException(
-                    "Reservation",
-                    id);
+            var entity = await repo.GetByIdWithRelationsAsync(id)
+                ?? throw new NotFoundException("Reservation", id);
 
-            // --------------------------------------------------------
-            // STATUS
-            // --------------------------------------------------------
-
-            if (entity.Status !=
-                    ReservationStatus.Pending &&
-                entity.Status !=
-                    ReservationStatus.AwaitingPayment)
+            if (entity.Status != ReservationStatus.Pending &&
+                entity.Status != ReservationStatus.AwaitingPayment)
             {
                 throw new BusinessException(
                     "Only Pending or AwaitingPayment reservations can be updated.");
             }
 
-            // --------------------------------------------------------
-            // USER AUTHORIZATION
-            // --------------------------------------------------------
-
-            if (role == UserRole.User &&
-                entity.UserId != userId)
-            {
+            if (role == UserRole.User && entity.UserId != userId)
                 throw new ForbiddenException();
-            }
-
-            // --------------------------------------------------------
-            // ADMIN AUTHORIZATION
-            // --------------------------------------------------------
 
             if (role == UserRole.Admin &&
-                entity.YouthCenterActivity?.YouthCenterId
-                != adminCenterId)
-            {
+                entity.YouthCenterActivity?.YouthCenterId != adminCenterId)
                 throw new ForbiddenException();
-            }
 
-            // --------------------------------------------------------
-            // NEW VALUES
-            // --------------------------------------------------------
-
-            var newDate =
-                dto.Date ?? entity.Date;
-
-            var newStart =
-                dto.StartTime ?? entity.StartTime;
-
-            var newEnd =
-                dto.EndTime ?? entity.EndTime;
-
-            var newActivityId =
-                dto.YouthCenterActivityId
-                ?? entity.YouthCenterActivityId;
-
-            // --------------------------------------------------------
-            // CHECK WHETHER PAYMENT-RELEVANT DATA CHANGED
-            // --------------------------------------------------------
+            var newDate = dto.Date ?? entity.Date;
+            var newStart = dto.StartTime ?? entity.StartTime;
+            var newEnd = dto.EndTime ?? entity.EndTime;
+            var newActivityId = dto.YouthCenterActivityId ?? entity.YouthCenterActivityId;
 
             var timeOrActivityChanged =
                 newDate != entity.Date ||
                 newStart != entity.StartTime ||
                 newEnd != entity.EndTime ||
-                newActivityId !=
-                    entity.YouthCenterActivityId;
-
-            // --------------------------------------------------------
-            // CHECK AVAILABILITY
-            // --------------------------------------------------------
+                newActivityId != entity.YouthCenterActivityId;
 
             if (timeOrActivityChanged)
             {
-                var conflict =
-                    await availabilityRepo.HasConflictAsync(
-                        newActivityId,
-                        newDate,
-                        newStart,
-                        newEnd,
-                        excludeReservationId:
-                            entity.Id);
+                var conflict = await availabilityRepo.HasConflictAsync(
+                    newActivityId, newDate, newStart, newEnd,
+                    excludeReservationId: entity.Id);
 
                 if (conflict)
                 {
                     throw new BusinessException(
-                        messageAr:
-                            "هذا الموعد الجديد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
-                        messageEn:
-                            "The new time slot is no longer available — either booked or reserved for a match.");
+                        messageAr: "هذا الموعد الجديد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
+                        messageEn: "The new time slot is no longer available — either booked or reserved for a match.");
                 }
             }
 
-            // --------------------------------------------------------
-            // KEEP OLD PAYMENT STATE
-            // --------------------------------------------------------
+            var wasAwaitingPayment = entity.Status == ReservationStatus.AwaitingPayment;
+            var oldTotalPrice = entity.TotalPrice;
 
-            var wasAwaitingPayment =
-                entity.Status ==
-                ReservationStatus.AwaitingPayment;
-
-            var oldTotalPrice =
-                entity.TotalPrice;
-
-            // --------------------------------------------------------
-            // APPLY CHANGES
-            // --------------------------------------------------------
-
-            entity =
-                UpdateReservationDto(
-                    entity,
-                    dto);
-
-            // --------------------------------------------------------
-            // RECALCULATE PRICE
-            // --------------------------------------------------------
+            entity = ApplyUpdate(entity, dto);
 
             if (timeOrActivityChanged)
             {
-                var activity =
-                    await repo.GetYouthCenterActivity(
-                        newActivityId)
+                var activity = await repo.GetYouthCenterActivity(newActivityId)
                     ?? throw new NotFoundException(
-                        messageAr:
-                            Messages.Data.NoDataAr,
-                        messageEn:
-                            Messages.Data.NoDataAr);
+                        messageAr: Messages.Data.NoDataAr,
+                        messageEn: Messages.Data.NoDataAr);
 
-                entity.TotalPrice =
-                    activity.Price *
-                    entity.DurationHours ?? 0;
+                entity.TotalPrice = activity.Price * entity.DurationHours ?? 0;
             }
 
-            var paymentAmountChanged =
-                oldTotalPrice != entity.TotalPrice;
-
-            // --------------------------------------------------------
-            // SAVE RESERVATION
-            // --------------------------------------------------------
+            var paymentAmountChanged = oldTotalPrice != entity.TotalPrice;
 
             repo.Update(entity);
-
             await repo.SaveChangesAsync();
 
-            var dtoResult =
-                mapper.ToDto(entity);
+            var dtoResult = mapper.ToDto(entity);
 
-            // ========================================================
-            // IMPORTANT PAYMENT RULE
-            // ========================================================
-            //
-            // If this is only a normal update:
-            //
-            //   specialRequest
-            //
-            // DON'T create another Paymob order.
-            //
-            // If reservation is awaiting payment and the amount
-            // did NOT change, keep the existing payment order.
-            //
-            // If amount changed, the old Paymob order represents
-            // the old amount, so a NEW Paymob order is required.
-            // ========================================================
-
-            if (wasAwaitingPayment &&
-                paymentAmountChanged)
+            // أمر دفع جديد فقط لو الدفع مفعّل + الحجز منتظر دفع + المبلغ اتغيّر
+            if (PaymentsEnabled && wasAwaitingPayment && paymentAmountChanged)
             {
                 try
                 {
-                    var amountCents =
-                        checked(
-                            (int)Math.Round(
-                                entity.TotalPrice * 100m,
-                                MidpointRounding.AwayFromZero));
+                    var newMerchantOrderId = $"RES-{entity.Id}-{Guid.NewGuid():N}";
 
-                    // ------------------------------------------------
-                    // NEW PAYMOB ORDER
-                    //
-                    // Because amount changed, we CANNOT reuse the
-                    // previous Paymob order.
-                    //
-                    // Therefore generate a NEW merchantOrderId.
-                    // ------------------------------------------------
+                    var paymentOrder = await paymentGateway.CreatePaymentOrderAsync(
+                        merchantOrderId: newMerchantOrderId,
+                        amountCents: ToCents(entity.TotalPrice));
 
-                    var newMerchantOrderId =
-                        $"RES-{entity.Id}-{Guid.NewGuid():N}";
-
-                    var paymentOrder =
-                        await paymentGateway
-                            .CreatePaymentOrderAsync(
-                                merchantOrderId:
-                                    newMerchantOrderId,
-                                amountCents:
-                                    amountCents);
-
-                    if (string.IsNullOrWhiteSpace(
-                            paymentOrder.PaymentUrl))
+                    if (string.IsNullOrWhiteSpace(paymentOrder.PaymentUrl))
                     {
                         throw new BusinessException(
-                            messageAr:
-                                "تعذر إنشاء رابط الدفع.",
-                            messageEn:
-                                "Failed to create payment URL.");
+                            messageAr: "تعذر إنشاء رابط الدفع.",
+                            messageEn: "Failed to create payment URL.");
                     }
 
-                    // ------------------------------------------------
-                    // Replace old Paymob payment reference.
-                    // ------------------------------------------------
-
-                    entity.MerchantOrderId =
-                        newMerchantOrderId;
-
-                    entity.PaymentTransactionId =
-                        paymentOrder.OrderId;
+                    entity.MerchantOrderId = newMerchantOrderId;
+                    entity.PaymentTransactionId = paymentOrder.OrderId;
 
                     repo.Update(entity);
-
                     await repo.SaveChangesAsync();
 
-                    dtoResult.PaymentUrl =
-                        paymentOrder.PaymentUrl;
+                    dtoResult.PaymentUrl = paymentOrder.PaymentUrl;
                 }
-                catch (
-                    PaymobPaymentGateway.PaymobException ex)
+                catch (PaymobPaymentGateway.PaymobException ex)
                 {
-                    Console.WriteLine(
-                        $"Paymob Update Error " +
-                        $"[{ex.StatusCode}]: " +
-                        $"{ex.ResponseBody}");
-
+                    Console.WriteLine($"Paymob Update Error [{ex.StatusCode}]: {ex.ResponseBody}");
                     throw new BusinessException(
-                        messageAr:
-                            "تعذر تحديث عملية الدفع حالياً. يرجى المحاولة مرة أخرى.",
-                        messageEn:
-                            "Unable to update the payment order. Please try again.");
+                        messageAr: "تعذر تحديث عملية الدفع حالياً. يرجى المحاولة مرة أخرى.",
+                        messageEn: "Unable to update the payment order. Please try again.");
                 }
                 catch (HttpRequestException ex)
                 {
-                    Console.WriteLine(
-                        $"Paymob Update HTTP Error: " +
-                        $"{ex.Message}");
-
+                    Console.WriteLine($"Paymob Update HTTP Error: {ex.Message}");
                     throw new BusinessException(
-                        messageAr:
-                            "تعذر الاتصال بخدمة الدفع حالياً.",
-                        messageEn:
-                            "Unable to connect to the payment service.");
+                        messageAr: "تعذر الاتصال بخدمة الدفع حالياً.",
+                        messageEn: "Unable to connect to the payment service.");
                 }
             }
 
             return dtoResult;
         }
 
-        // ============================================================
-        // UPDATE DTO -> ENTITY
-        // ============================================================
-
-        private static Reservation UpdateReservationDto(
-            Reservation reservation,
-            UpdateReservationDto dto)
+        private static Reservation ApplyUpdate(Reservation reservation, UpdateReservationDto dto)
         {
-            if (dto.Date.HasValue)
-                reservation.Date =
-                    dto.Date.Value;
-
-            if (dto.StartTime.HasValue)
-                reservation.StartTime =
-                    dto.StartTime.Value;
-
-            if (dto.EndTime.HasValue)
-                reservation.EndTime =
-                    dto.EndTime.Value;
+            if (dto.Date.HasValue) reservation.Date = dto.Date.Value;
+            if (dto.StartTime.HasValue) reservation.StartTime = dto.StartTime.Value;
+            if (dto.EndTime.HasValue) reservation.EndTime = dto.EndTime.Value;
 
             if (dto.YouthCenterActivityId.HasValue)
-            {
-                reservation.YouthCenterActivityId =
-                    dto.YouthCenterActivityId.Value;
-            }
+                reservation.YouthCenterActivityId = dto.YouthCenterActivityId.Value;
 
             if (dto.SpecialRequest != null)
-            {
-                reservation.SpecialRequest =
-                    dto.SpecialRequest;
-            }
+                reservation.SpecialRequest = dto.SpecialRequest;
 
-            // IMPORTANT:
-            // dto.TotalPrice is intentionally ignored.
-            //
-            // The server calculates TotalPrice from the activity.
-            //
-            // NEVER trust the price sent by Flutter.
-
+            // dto.TotalPrice متجاهل عمدًا: السعر دايمًا من السيرفر
             return reservation;
         }
 
@@ -825,79 +528,52 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         // AVAILABLE HOURS
         // ============================================================
 
-        public async Task<List<PeakHourDto>?> GetAvailHoursAsync(
-            AvailBookingDto dto)
-        {
-            return await repo.GetAvailBookingHoursAsync(dto);
-        }
+        public async Task<List<PeakHourDto>?> GetAvailHoursAsync(AvailBookingDto dto) =>
+            await repo.GetAvailBookingHoursAsync(dto);
 
         // ============================================================
         // LOCK FOR PAYMENT
         // ============================================================
 
-        public async Task<ReservationDto?> LockForPaymentAsync(
-            CreateReservationDto dto,
-            int userId)
+        public async Task<ReservationDto?> LockForPaymentAsync(CreateReservationDto dto, int userId)
         {
-            var activity =
-                await repo.GetYouthCenterActivity(
-                    dto.YouthCenterActivityId)
+            if (!PaymentsEnabled)
+            {
+                throw new BusinessException(
+                    messageAr: "الدفع الإلكتروني غير متاح حالياً.",
+                    messageEn: "Online payment is currently unavailable.");
+            }
+
+            var activity = await repo.GetYouthCenterActivity(dto.YouthCenterActivityId)
                 ?? throw new NotFoundException(
-                    messageAr:
-                        Messages.Data.NoDataAr,
-                    messageEn:
-                        Messages.Data.NoDataAr);
+                    messageAr: Messages.Data.NoDataAr,
+                    messageEn: Messages.Data.NoDataAr);
 
-            dto.UserId =
-                userId;
+            dto.UserId = userId;
 
-            // --------------------------------------------------------
-            // AVAILABILITY
-            // --------------------------------------------------------
-
-            var conflict =
-                await availabilityRepo.HasConflictAsync(
-                    dto.YouthCenterActivityId,
-                    dto.Date,
-                    dto.StartTime,
-                    dto.EndTime);
+            var conflict = await availabilityRepo.HasConflictAsync(
+                dto.YouthCenterActivityId, dto.Date, dto.StartTime, dto.EndTime);
 
             if (conflict)
             {
                 throw new BusinessException(
-                    messageAr:
-                        "هذا الموعد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
-                    messageEn:
-                        "This time slot is no longer available — either booked or reserved for a match.");
+                    messageAr: "هذا الموعد لم يعد متاحاً — إما محجوز أو مخصص لمباراة.",
+                    messageEn: "This time slot is no longer available — either booked or reserved for a match.");
             }
 
-            // --------------------------------------------------------
-            // CREATE RESERVATION
-            // --------------------------------------------------------
-
-            var entity =
-                mapper.CreateEntity(dto);
-
-            entity.Status =
-                ReservationStatus.AwaitingPayment;
-
-            entity.PaymentLockExpiresAt =
-                DateTime.UtcNow.AddMinutes(10);
-
-            entity.TotalPrice =
-                activity.Price *
-                entity.DurationHours ?? 0;
+            var entity = mapper.CreateEntity(dto);
+            entity.Status = ReservationStatus.AwaitingPayment;
+            entity.PaymentLockExpiresAt = DateTime.UtcNow.AddMinutes(10);
+            entity.TotalPrice = activity.Price * entity.DurationHours ?? 0;
 
             try
             {
                 await repo.AddAsync(entity);
-
                 await repo.SaveChangesAsync();
             }
             catch (DbUpdateException)
             {
-                throw new BusinessException(
-                    "This time slot was just taken by another user.");
+                throw new BusinessException("This time slot was just taken by another user.");
             }
 
             return mapper.ToDto(entity);
@@ -907,258 +583,164 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         // PAY AGAIN
         // ============================================================
 
-        public async Task<ReservationDto?> PayAgainAsync(
-            int reservationId,
-            int userId)
+        public async Task<ReservationDto?> PayAgainAsync(int reservationId, int userId)
         {
-            var reservation =
-                await repo.GetByIdWithRelationsAsync(
-                    reservationId)
-                ?? throw new NotFoundException(
-                    "Reservation",
-                    reservationId);
+            if (!PaymentsEnabled)
+            {
+                throw new BusinessException(
+                    messageAr: "الدفع الإلكتروني غير متاح حالياً.",
+                    messageEn: "Online payment is currently unavailable.");
+            }
 
-            // --------------------------------------------------------
-            // OWNERSHIP
-            // --------------------------------------------------------
+            var reservation = await repo.GetByIdWithRelationsAsync(reservationId)
+                ?? throw new NotFoundException("Reservation", reservationId);
 
             if (reservation.UserId != userId)
                 throw new ForbiddenException();
 
-            // --------------------------------------------------------
-            // STATUS
-            // --------------------------------------------------------
-
-            if (reservation.Status !=
-                ReservationStatus.AwaitingPayment)
+            if (reservation.Status != ReservationStatus.AwaitingPayment)
             {
                 throw new BusinessException(
-                    messageAr:
-                        "هذا الحجز لا يحتاج إلى دفع حالياً.",
-                    messageEn:
-                        "This reservation does not require payment.");
+                    messageAr: "هذا الحجز لا يحتاج إلى دفع حالياً.",
+                    messageEn: "This reservation does not require payment.");
             }
 
-            // --------------------------------------------------------
-            // CALCULATE CURRENT AMOUNT
-            // --------------------------------------------------------
+            var amountCents = ToCents(reservation.TotalPrice);
 
-            var amountCents =
-                checked(
-                    (int)Math.Round(
-                        reservation.TotalPrice * 100m,
-                        MidpointRounding.AwayFromZero));
-
-            // --------------------------------------------------------
-            // CASE 1
-            // Existing Paymob Order exists.
-            //
-            // Try to reuse it.
-            // --------------------------------------------------------
-
-            if (!string.IsNullOrWhiteSpace(
-                    reservation.PaymentTransactionId))
+            // ── 1) محاولة إعادة استخدام الأمر القديم ──────────────
+            if (!string.IsNullOrWhiteSpace(reservation.PaymentTransactionId))
             {
                 try
                 {
-                    var paymentOrder =
-                        await paymentGateway
-                            .CreatePaymentForExistingOrderAsync(
-                                reservation.PaymentTransactionId,
-                                amountCents);
+                    var existing = await paymentGateway.CreatePaymentForExistingOrderAsync(
+                        reservation.PaymentTransactionId, amountCents);
 
-                    if (!string.IsNullOrWhiteSpace(
-                            paymentOrder.PaymentUrl))
+                    if (!string.IsNullOrWhiteSpace(existing.PaymentUrl))
                     {
-                        // Renew payment lock.
-                        reservation.PaymentLockExpiresAt =
-                            DateTime.UtcNow.AddMinutes(10);
-
+                        reservation.PaymentLockExpiresAt = DateTime.UtcNow.AddMinutes(10);
                         repo.Update(reservation);
-
                         await repo.SaveChangesAsync();
 
-                        var result =
-                            mapper.ToDto(reservation);
-
-                        result.PaymentUrl =
-                            paymentOrder.PaymentUrl;
-
+                        var result = mapper.ToDto(reservation);
+                        result.PaymentUrl = existing.PaymentUrl;
                         return result;
                     }
                 }
-                catch (
-                    PaymobPaymentGateway.PaymobException ex)
+                catch (PaymobPaymentGateway.PaymobException ex)
                 {
-                    Console.WriteLine(
-                        $"Paymob Existing Order Error " +
-                        $"[{ex.StatusCode}]: " +
-                        $"{ex.ResponseBody}");
-
-                    // ------------------------------------------------
-                    // Existing order cannot be reused.
-                    //
-                    // We continue below and create a NEW order.
-                    // ------------------------------------------------
+                    Console.WriteLine($"Paymob Existing Order Error [{ex.StatusCode}]: {ex.ResponseBody}");
+                    // نكمل وننشئ أمر جديد
                 }
                 catch (HttpRequestException ex)
                 {
-                    Console.WriteLine(
-                        $"Paymob Existing Order HTTP Error: " +
-                        $"{ex.Message}");
-
+                    Console.WriteLine($"Paymob Existing Order HTTP Error: {ex.Message}");
                     throw new BusinessException(
-                        messageAr:
-                            "تعذر الاتصال بخدمة الدفع حالياً.",
-                        messageEn:
-                            "Unable to connect to the payment service.");
+                        messageAr: "تعذر الاتصال بخدمة الدفع حالياً.",
+                        messageEn: "Unable to connect to the payment service.");
                 }
             }
 
-
-            var newMerchantOrderId =
-                $"RES-{reservation.Id}-{Guid.NewGuid():N}";
+            // ── 2) أمر دفع جديد ───────────────────────────────────
+            var newMerchantOrderId = $"RES-{reservation.Id}-{Guid.NewGuid():N}";
 
             try
             {
-                var paymentOrder =
-                    await paymentGateway
-                        .CreatePaymentOrderAsync(
-                            merchantOrderId:
-                                newMerchantOrderId,
-                            amountCents:
-                                amountCents);
+                var paymentOrder = await paymentGateway.CreatePaymentOrderAsync(
+                    merchantOrderId: newMerchantOrderId,
+                    amountCents: amountCents);
 
-                if (string.IsNullOrWhiteSpace(
-                        paymentOrder.PaymentUrl))
+                if (string.IsNullOrWhiteSpace(paymentOrder.PaymentUrl))
                 {
                     throw new BusinessException(
-                        messageAr:
-                            "تعذر إنشاء رابط الدفع.",
-                        messageEn:
-                            "Failed to create payment URL.");
+                        messageAr: "تعذر إنشاء رابط الدفع.",
+                        messageEn: "Failed to create payment URL.");
                 }
 
-                // ----------------------------------------------------
-                // Replace payment reference with NEW order.
-                // ----------------------------------------------------
-
-                reservation.MerchantOrderId =
-                    newMerchantOrderId;
-
-                reservation.PaymentTransactionId =
-                    paymentOrder.OrderId;
-
-                reservation.PaymentLockExpiresAt =
-                    DateTime.UtcNow.AddMinutes(10);
+                reservation.MerchantOrderId = newMerchantOrderId;
+                reservation.PaymentTransactionId = paymentOrder.OrderId;
+                reservation.PaymentLockExpiresAt = DateTime.UtcNow.AddMinutes(10);
 
                 repo.Update(reservation);
-
                 await repo.SaveChangesAsync();
 
-                var result =
-                    mapper.ToDto(reservation);
-
-                result.PaymentUrl =
-                    paymentOrder.PaymentUrl;
-
+                var result = mapper.ToDto(reservation);
+                result.PaymentUrl = paymentOrder.PaymentUrl;
                 return result;
             }
-            catch (
-                PaymobPaymentGateway.PaymobException ex)
+            catch (PaymobPaymentGateway.PaymobException ex)
             {
-                Console.WriteLine(
-                    $"Paymob New Order Error " +
-                    $"[{ex.StatusCode}]: " +
-                    $"{ex.ResponseBody}");
-
+                Console.WriteLine($"Paymob New Order Error [{ex.StatusCode}]: {ex.ResponseBody}");
                 throw new BusinessException(
-                    messageAr:
-                        "تعذر إنشاء عملية دفع جديدة حالياً. يرجى المحاولة مرة أخرى.",
-                    messageEn:
-                        "Unable to create a new payment order. Please try again.");
+                    messageAr: "تعذر إنشاء عملية دفع جديدة حالياً. يرجى المحاولة مرة أخرى.",
+                    messageEn: "Unable to create a new payment order. Please try again.");
             }
             catch (HttpRequestException ex)
             {
-                Console.WriteLine(
-                    $"Paymob New Order HTTP Error: " +
-                    $"{ex.Message}");
-
+                Console.WriteLine($"Paymob New Order HTTP Error: {ex.Message}");
                 throw new BusinessException(
-                    messageAr:
-                        "تعذر الاتصال بخدمة الدفع حالياً.",
-                    messageEn:
-                        "Unable to connect to the payment service.");
+                    messageAr: "تعذر الاتصال بخدمة الدفع حالياً.",
+                    messageEn: "Unable to connect to the payment service.");
             }
         }
 
         // ============================================================
-        // CONFIRM PAYMENT
+        // CONFIRM PAYMENT  (يُستدعى من الـ webhook فقط)
         // ============================================================
 
         public async Task<ReservationDto?> ConfirmPaymentAsync(
-            int reservationId,
-            ConfirmPaymentDto dto)
+            int reservationId, ConfirmPaymentDto dto)
         {
-            var reservation =
-                await repo.GetByIdWithRelationsAsync(
-                    reservationId)
-                ?? throw new NotFoundException(
-                    "Reservation",
-                    reservationId);
+            var reservation = await repo.GetByIdWithRelationsAsync(reservationId)
+                ?? throw new NotFoundException("Reservation", reservationId);
 
-            if (reservation.Status !=
-                ReservationStatus.AwaitingPayment)
+            // دفع وصل لحجز ملغي/منتهي: الفلوس اتسحبت → لازم استرداد
+            if (reservation.Status == ReservationStatus.Cancelled)
             {
+                reservation.RefundPending = true;
+                reservation.PaymentTransactionId = dto.TransactionId;
+                reservation.PaidAt = DateTime.UtcNow;
+
+                repo.Update(reservation);
+                await repo.SaveChangesAsync();
+
+                await NotifyCenterAdminsAsync(
+                    reservation.YouthCenterActivity?.YouthCenterId, reservation.Id,
+                    "دفع على حجز ملغي",
+                    $"وصل دفع على حجز ملغي رقم {reservation.Id} ويحتاج استرداد.");
+
                 throw new BusinessException(
-                    "Reservation is not awaiting payment.");
+                    messageAr: "الحجز ملغي. سيتم استرداد المبلغ.",
+                    messageEn: "Reservation is cancelled. The payment will be refunded.");
             }
 
-            // --------------------------------------------------------
-            // PAYMENT LOCK
-            // --------------------------------------------------------
+            if (reservation.Status != ReservationStatus.AwaitingPayment)
+                throw new BusinessException("Reservation is not awaiting payment.");
 
             if (reservation.PaymentLockExpiresAt.HasValue &&
-                reservation.PaymentLockExpiresAt <
-                    DateTime.UtcNow)
+                reservation.PaymentLockExpiresAt < DateTime.UtcNow)
             {
-                throw new BusinessException(
-                    "Payment window expired. Please pay again.");
+                throw new BusinessException("Payment window expired. Please pay again.");
             }
 
-            // --------------------------------------------------------
-            // AMOUNT VALIDATION
-            // --------------------------------------------------------
+            if (dto.AmountPaid.HasValue && dto.AmountPaid.Value != reservation.TotalPrice)
+                throw new BusinessException("Paid amount does not match reservation price.");
 
-            if (dto.AmountPaid.HasValue &&
-                dto.AmountPaid.Value !=
-                    reservation.TotalPrice)
-            {
-                throw new BusinessException(
-                    "Paid amount does not match reservation price.");
-            }
-
-            // --------------------------------------------------------
-            // PAYMENT CONFIRMED
-            // --------------------------------------------------------
-
-            reservation.Status =
-                ReservationStatus.Confirmed;
-
-            reservation.PaymentTransactionId =
-                dto.TransactionId;
-
-            reservation.PaidAt =
-                DateTime.UtcNow;
-
-            reservation.PaymentLockExpiresAt =
-                null;
+            reservation.Status = ReservationStatus.Confirmed;
+            reservation.PaymentTransactionId = dto.TransactionId;
+            reservation.PaidAt = DateTime.UtcNow;
+            reservation.PaymentLockExpiresAt = null;
 
             repo.Update(reservation);
-            await notifications.SendToUserAsync(reservation.UserId, "تم الدفع بنجاح",
-                "تم تأكيد حجزك بعد إتمام الدفع.",
-                type: "reservation", targetId: reservation.Id);
             await repo.SaveChangesAsync();
+
+            await NotifyUserAsync(reservation,
+                "تم الدفع بنجاح",
+                "تم تأكيد حجزك بعد إتمام الدفع.");
+
+            await NotifyCenterAdminsAsync(
+                reservation.YouthCenterActivity?.YouthCenterId, reservation.Id,
+                "حجز جديد مدفوع",
+                $"حجز جديد مدفوع بتاريخ {reservation.Date:yyyy-MM-dd}.");
 
             return mapper.ToDto(reservation);
         }
@@ -1167,43 +749,18 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         // PAYMENT FAILED
         // ============================================================
 
-        public async Task FailPaymentAsync(
-            int reservationId,
-            string reason)
+        public async Task FailPaymentAsync(int reservationId, string reason)
         {
-            var reservation =
-                await repo.GetByIdWithRelationsAsync(
-                    reservationId)
-                ?? throw new NotFoundException(
-                    "Reservation",
-                    reservationId);
+            var reservation = await repo.GetByIdWithRelationsAsync(reservationId)
+                ?? throw new NotFoundException("Reservation", reservationId);
 
-            // --------------------------------------------------------
-            // IMPORTANT:
-            //
-            // Payment failure does NOT cancel the reservation.
-            //
-            // It remains AwaitingPayment so the user can pay later.
-            // --------------------------------------------------------
-
-            if (reservation.Status !=
-                ReservationStatus.AwaitingPayment)
-            {
+            if (reservation.Status != ReservationStatus.AwaitingPayment)
                 return;
-            }
 
-            reservation.RejectionReason =
-                reason;
-
-            // Keep:
-            //
-            // reservation.Status =
-            //     ReservationStatus.AwaitingPayment;
-            //
-            // Do NOT cancel here.
+            // الحجز يفضل AwaitingPayment عشان اللاعب يقدر يدفع تاني
+            reservation.RejectionReason = reason;
 
             repo.Update(reservation);
-
             await repo.SaveChangesAsync();
         }
     }
