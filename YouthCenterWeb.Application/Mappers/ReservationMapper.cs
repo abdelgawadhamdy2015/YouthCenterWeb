@@ -42,7 +42,17 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 ActivityId = x.YouthCenterActivity?.ActivityId,
                 TotalPrice = x.TotalPrice,
                 DurationHours = x.DurationHours,
-                SpecialRequest = x.SpecialRequest
+                SpecialRequest = x.SpecialRequest,
+                RejectionReason = x.RejectionReason,
+                RefundPending = x.RefundPending,
+                ReviewedAt = x.ReviewedAt,
+                ReviewedBy = x.ReviewedBy,
+                CancelledAt = x.CancelledAt,
+                PaymentLockExpiresAt = x.PaymentLockExpiresAt,
+                PaidAt = x.PaidAt,
+                PaymentTransactionId = x.PaymentTransactionId
+
+
 
             };
             return reservationDto;
