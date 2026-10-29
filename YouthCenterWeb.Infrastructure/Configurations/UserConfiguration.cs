@@ -23,7 +23,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Role)
             .IsRequired()
             .HasConversion<string>();
+        builder.Property(u => u.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
 
+        builder.Property(u => u.DeletedAt)
+            .IsRequired(false);
         builder.HasOne(u => u.YouthCenter)
             .WithMany()
             .HasForeignKey(u => u.YouthCenterId)

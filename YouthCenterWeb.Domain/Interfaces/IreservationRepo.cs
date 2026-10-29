@@ -1,23 +1,25 @@
-// Application/Interfaces/IReservationRepo.cs
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
-namespace YouthCenterWeb.YouthCenterWeb.Domain.Interfaces
+public interface IReservationRepo
 {
-    public interface IReservationRepo
-    {
-        Task<bool> HasActiveOverlapAsync(int activityId, DateTime date, TimeOnly start, TimeOnly end);
-        Task ExpireStaleLocksAsync();
-        Task<List<Reservation>> GetFiltersReservationsAsync(FilteredReservationDto? dto);
-        Task<Reservation?> GetByIdWithRelationsAsync(int id);
-        Task<int> GetCount(FilteredReservationDto? dto);
-        Task<int> GetActivityCount(FilteredReservationDto? dto);
-        Task<YouthCenterActivity?> GetYouthCenterActivity(int youthCenterActivityId);
-        Task<List<PeakHourDto>> GetPeakBookingHoursAsync(FilteredReservationDto? dto);
-        Task<List<PeakHourDto>> GetAvailBookingHoursAsync(AvailBookingDto? dto);
-        Task AddAsync(Reservation entity);
-        void Delete(Reservation entity);    // sync — EF tracks it
-        void Update(Reservation entity);    // sync — EF tracks it
-        Task SaveChangesAsync();
-    }
+    Task<List<Reservation>> GetFiltersReservationsAsync(FilteredReservationDto? dto);
+    Task<Reservation?> GetByIdWithRelationsAsync(int id);
+    Task<YouthCenterActivity?> GetYouthCenterActivity(int youthCenterActivityId);
+
+    Task AddAsync(Reservation entity);
+    void Delete(Reservation entity);
+    void Update(Reservation entity);
+    Task SaveChangesAsync();
+
+    Task<bool> HasActiveOverlapAsync(int activityId, DateTime date, TimeOnly start, TimeOnly end);
+    Task ExpireStaleLocksAsync();
+
+    Task<int> GetCount(FilteredReservationDto? dto);
+    Task<int> GetActivityCount(FilteredReservationDto? dto);
+    Task<List<PeakHourDto>> GetPeakBookingHoursAsync(FilteredReservationDto? dto);
+    Task<List<PeakHourDto>> GetAvailBookingHoursAsync(AvailBookingDto? dto);
+
+    // جديد
+    Task<List<int>> GetCenterAdminIdsAsync(int youthCenterId);
 }

@@ -380,6 +380,9 @@ namespace YouthCenterWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
@@ -397,6 +400,9 @@ namespace YouthCenterWeb.Migrations
 
                     b.Property<string>("PaymentTransactionId")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("RefundPending")
+                        .HasColumnType("bit");
 
                     b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
@@ -462,6 +468,9 @@ namespace YouthCenterWeb.Migrations
                     b.Property<Guid?>("CurrentSessionId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -473,6 +482,11 @@ namespace YouthCenterWeb.Migrations
 
                     b.Property<string>("ImageUrl")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Mobile")
                         .IsRequired()
@@ -497,6 +511,42 @@ namespace YouthCenterWeb.Migrations
                     b.HasIndex("YouthCenterId");
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("TargetId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("YouthCenterWeb.YouthCenterWeb.Domain.Entities.YouthCenter", b =>

@@ -28,5 +28,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
             _context.Users.Update(user);
             return _context.SaveChangesAsync();
         }
+        public async Task UpdatePasswordAsync(User user, string hashedPassword)
+        {
+            user.HashedPassword = hashedPassword;
+            user.CurrentSessionId = Guid.NewGuid();
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
     }
 }

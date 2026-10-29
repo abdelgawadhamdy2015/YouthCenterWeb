@@ -21,7 +21,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public string? ImageUrl { get; set; }
         public string? Bio { get; set; }
 
+        public bool IsDeleted { get; set; } = false;
 
+        public DateTime? DeletedAt { get; set; }
         // 🔗 Foreign Key → YouthCenter
         public int? YouthCenterId { get; set; } = null;
 

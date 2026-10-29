@@ -8,5 +8,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Interfaces
         Task<UserDto?> GetByIdAsync(int id);
         Task<UserDto?> GetByEmailAsync(string email);
         Task<UserDto?> UpdateAsync(int userId, UpdateUserDto dto);
+        Task<bool> DeleteAsync(int id);
     }
 }
