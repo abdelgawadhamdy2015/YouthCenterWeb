@@ -14,7 +14,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs
         public int? FavActivityId { get; set; }
         public string? FavActivityName { get; set; }
         public int ReservationCount { get; set; } = 0;
-
+        public string? RefreshToken { get; set; }
         public UserRole Role { get; set; }
         public string Token { get; set; } = string.Empty;
     }

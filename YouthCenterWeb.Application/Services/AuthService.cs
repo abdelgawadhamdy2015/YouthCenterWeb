@@ -1,4 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.Data.DTO;
@@ -8,6 +11,7 @@ using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Hubs;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
@@ -16,10 +20,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         IAuthRepo authRepo,
         IOtpRepo otpRepo,
         IJwtService jwtService,
+        IRefreshTokenRepo refreshRepo,
+        IOptions<JwtOptions> jwtOptions,
         IHubContext<SessionHub> sessionHub) : IAuthService
     {
         // Register stays the same, but Success() now needs a fresh session id.
-
+        private readonly JwtOptions _jwt = jwtOptions.Value;
         public async Task<BaseResponse<LoginData>> RegisterAsync(RegisterDto dto)
         {
             var emailVerified = await otpRepo.IsVerifiedAsync(dto.Email);
@@ -95,6 +101,86 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
             };
         }
+        // ── Refresh ───────────────────────────────────────────────────────────────
+        public async Task<BaseResponse<LoginData>> RefreshAsync(RefreshTokenDto dto)
+        {
+            var fail = Fail("Session expired. Please log in again.",
+                            "انتهت الجلسة، سجّل الدخول مرة أخرى.");
+
+            var oldHash = Hash(dto.RefreshToken);
+            var stored = await refreshRepo.GetByHashAsync(oldHash);
+            if (stored is null) return fail;
+
+            if (stored.RevokedAt is not null)
+            {
+                // مهلة قصيرة لطلبات متزامنة شرعية. بعدها = إعادة استخدام = سرقة محتملة
+                var grace = stored.ReplacedByHash is not null &&
+                            DateTime.UtcNow - stored.RevokedAt < TimeSpan.FromSeconds(10);
+                if (!grace) await refreshRepo.RevokeAllForUserAsync(stored.UserId);
+                return fail;
+            }
+
+            if (stored.ExpiresAt <= DateTime.UtcNow) return fail;
+
+            var user = await authRepo.GetByIdAsync(stored.UserId);
+            if (user is null || user.IsDeleted || user.CurrentSessionId != stored.SessionId)
+                return fail;                       // سجّل دخول من جهاز آخر/تغيّر الباسورد/حُذف
+
+            var newRaw = GenerateRawToken();
+            var newHash = Hash(newRaw);
+
+            // ذري: لو طلب آخر سبقنا يرجع false
+            if (!await refreshRepo.TryRevokeAsync(stored.Id, newHash)) return fail;
+
+            await refreshRepo.AddAsync(NewEntity(user.Id, stored.SessionId, newHash));
+            await refreshRepo.SaveChangesAsync();
+
+            return new BaseResponse<LoginData>
+            {
+                Result = 1,
+                Data = BuildLoginData(user, jwtService.GenerateToken(user, stored.SessionId), newRaw),
+                Alert = new Alert { MessageEn = "Success", MessageAr = "تمت العملية بنجاح" }
+            };
+        }
+
+        // ── Logout ────────────────────────────────────────────────────────────────
+        public async Task<BaseResponse<object>> LogoutAsync(int userId)
+        {
+            await refreshRepo.RevokeAllForUserAsync(userId);
+            var user = await authRepo.GetByIdAsync(userId);
+            if (user is not null) await authRepo.ClearSessionAsync(user); // يبطل الـ access token فورًا
+
+            return new BaseResponse<object>
+            {
+                Result = 1,
+                Alert = new Alert { MessageEn = "Logged out", MessageAr = "تم تسجيل الخروج" }
+            };
+        }
+
+        // ── helpers ───────────────────────────────────────────────────────────────
+        private async Task<string> IssueRefreshTokenAsync(int userId, Guid sessionId)
+        {
+            var raw = GenerateRawToken();
+            await refreshRepo.AddAsync(NewEntity(userId, sessionId, Hash(raw)));
+            await refreshRepo.SaveChangesAsync();
+            return raw;
+        }
+
+        private RefreshToken NewEntity(int userId, Guid sessionId, string hash) => new()
+        {
+            UserId = userId,
+            SessionId = sessionId,
+            TokenHash = hash,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(_jwt.RefreshTokenDays)
+        };
+
+        private static string GenerateRawToken() =>
+            Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        private static string Hash(string token) =>
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
         // ── shared helpers ────────────────────────────────────────────────────
         private async Task<BaseResponse<LoginData>> SuccessAsync(User user)
@@ -102,31 +188,34 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             var sessionId = Guid.NewGuid();
             await authRepo.UpdateSessionAsync(user, sessionId);
 
-            // notify any previously connected device for this user — instantly
+            // الجهاز القديم يفقد الـ refresh فورًا
+            await refreshRepo.RevokeAllForUserAsync(user.Id);
+            var refresh = await IssueRefreshTokenAsync(user.Id, sessionId);
+
             await sessionHub.Clients.Group($"user:{user.Id}")
-                .SendAsync("ForceLogout", new
-                {
-                    reason = "logged_in_elsewhere",
-                    at = DateTime.UtcNow
-                });
+                .SendAsync("ForceLogout", new { reason = "logged_in_elsewhere", at = DateTime.UtcNow });
 
             return new BaseResponse<LoginData>
             {
                 Result = 1,
-                Data = new LoginData
-                {
-                    Email = user.Email,
-                    Name = user.Name,
-                    Mobile = user.Mobile,
-                    Role = user.Role,
-                    FavActivityName = user.Activity?.NameAr,
-                    FavActivityId = user.ActivityId,
-                    YouthCenterName = user.YouthCenter?.NameAr,
-                    Token = jwtService.GenerateToken(user, sessionId)
-                },
+                Data = BuildLoginData(user, jwtService.GenerateToken(user, sessionId), refresh),
                 Alert = new Alert { MessageEn = "Success", MessageAr = "تمت العملية بنجاح" }
             };
         }
+
+        private static LoginData BuildLoginData(User user, string token, string refresh) => new()
+        {
+            Email = user.Email,
+            Name = user.Name,
+            Mobile = user.Mobile,
+            Role = user.Role,
+            FavActivityName = user.Activity?.NameAr,
+            FavActivityId = user.ActivityId,
+            YouthCenterName = user.YouthCenter?.NameAr,
+            ReservationCount = user.ReservationCount,
+            Token = token,
+            RefreshToken = refresh
+        };
 
         private static BaseResponse<LoginData> Fail(string en, string ar) =>
             new()

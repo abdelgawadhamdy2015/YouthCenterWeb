@@ -1,10 +1,13 @@
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using YouthCenterWeb.Infrastructure.Firebase;
+using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.API.Middleware;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
@@ -27,6 +30,81 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 #endregion
+
+
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownNetworks.Clear();
+    o.KnownProxies.Clear();
+});
+
+static string ClientIp(HttpContext c) =>
+    c.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.OnRejected = async (ctx, ct) =>
+    {
+        if (ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))
+            ctx.HttpContext.Response.Headers.RetryAfter = ((int)retry.TotalSeconds).ToString();
+
+        ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await ctx.HttpContext.Response.WriteAsJsonAsync(new BaseResponse<object>
+        {
+            Result = 0,
+            Alert = new Alert
+            {
+                MessageAr = "محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.",
+                MessageEn = "Too many requests. Please try again shortly."
+            }
+        }, ct);
+    };
+
+    // تسجيل الدخول / التسجيل / إعادة تعيين الباسورد: 5 محاولات في الدقيقة لكل IP
+    options.AddPolicy("login", ctx =>
+        RateLimitPartition.GetSlidingWindowLimiter(ClientIp(ctx), _ =>
+            new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 4,
+                QueueLimit = 0
+            }));
+
+    // إرسال/تحقق OTP: أضيق (يمنع إغراق إيميل بالرسائل وتخمين الكود)
+    options.AddPolicy("otp", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ClientIp(ctx), _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0
+            }));
+
+    // refresh: أوسع لأن التطبيق يستدعيه تلقائيًا
+    options.AddPolicy("refresh", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ClientIp(ctx), _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    // حد عام لكل IP على كل الـ API
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ClientIp(ctx), _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
+
 
 #region 🔹 Swagger + JWT Auth UI
 builder.Services.AddSwaggerGen(options =>
