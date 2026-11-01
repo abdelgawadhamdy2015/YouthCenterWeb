@@ -13,6 +13,8 @@ namespace YouthCenterWeb.YouthCenterWeb.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
+
 public class CupsController(ICupService cupService) : ControllerBase
 {
     private readonly ICupService _cupService = cupService;
