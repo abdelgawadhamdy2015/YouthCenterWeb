@@ -23,13 +23,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             var apiKey = config["Brevo:ApiKey"]
                 ?? throw new InvalidOperationException("Brevo:ApiKey is not configured.");
 
-            _logger.LogInformation("Brevo key loaded, length: {Length}, starts: {Prefix}",
-                apiKey.Length, apiKey.Length > 10 ? apiKey[..10] : apiKey);
-            // var apiKey = config["Brevo:ApiKey"]
-            //     ?? throw new InvalidOperationException("Brevo:ApiKey is not configured.");
 
-            _senderEmail = config["Brevo:SenderEmail"] ?? "abdelgawadhamdy93@gmail.com";
-            _senderName = config["Brevo:SenderName"] ?? "Youth Center";
+            _senderEmail = config["Brevo:SenderEmail"]
+                ?? throw new InvalidOperationException("Brevo:SenderEmail is not configured."); _senderName = config["Brevo:SenderName"] ?? "Youth Center";
 
             _http.BaseAddress = new Uri("https://api.brevo.com/v3/");
             _http.DefaultRequestHeaders.Accept.Add(
@@ -57,9 +53,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     var body = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning(
-                        "Brevo send failed. Status: {Status}, Body: {Body}",
-                        response.StatusCode, body);
+
                     return false;
                 }
 
