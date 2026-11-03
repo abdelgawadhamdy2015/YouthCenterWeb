@@ -146,4 +146,9 @@ public interface ICupRepo
     /// Sets TeamAId/TeamBId based on group standings (A1 vs B2, B1 vs A2 etc.)
     /// </summary>
     Task SeedKnockoutMatchesAsync(int cupId);
+    Task<int?> GetCupIdByTeamIdAsync(int teamId);
+
+    Task<Cup?> GetByIdForUpdateAsync(int cupId);
+
+    Task ExecuteInTransactionAsync(Func<Task> operation);
 }

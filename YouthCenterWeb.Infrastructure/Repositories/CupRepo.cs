@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
@@ -198,11 +199,23 @@ public class CupRepo(AppDbContext context) : ICupRepo
             .FirstOrDefaultAsync(t => t.Id == teamId)
             ?? throw new KeyNotFoundException($"CupTeam {teamId} not found");
 
+        if (team.Status != CupTeamStatus.Pending)
+            throw new InvalidOperationException(
+                $"Cannot accept a team with status '{team.Status}'.");
+
+        if (team.Cup.Status != CupStatus.RegistrationOpen)
+            throw new InvalidOperationException(
+                $"Cannot accept teams when cup status is '{team.Cup.Status}'.");
+
+        if (team.Cup.CurrentTeamCount >= team.Cup.MaxTeams)
+            throw new InvalidOperationException("The cup is already full.");
+
         team.Status = CupTeamStatus.Accepted;
         team.ReviewedAt = DateTime.UtcNow;
         team.Cup.CurrentTeamCount++;
 
         await _context.SaveChangesAsync();
+
         return team.Cup;
     }
 
@@ -211,6 +224,10 @@ public class CupRepo(AppDbContext context) : ICupRepo
         var team = await _context.CupTeams
             .FirstOrDefaultAsync(t => t.Id == teamId)
             ?? throw new KeyNotFoundException($"CupTeam {teamId} not found");
+
+        if (team.Status != CupTeamStatus.Pending)
+            throw new InvalidOperationException(
+                $"Cannot reject a team with status '{team.Status}'.");
 
         team.Status = CupTeamStatus.Rejected;
         team.ReviewedAt = DateTime.UtcNow;
@@ -477,5 +494,41 @@ public class CupRepo(AppDbContext context) : ICupRepo
                 messageEn: "The third-place match is already full.");
 
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<int?> GetCupIdByTeamIdAsync(int teamId)
+    {
+        return await _context.CupTeams
+            .AsNoTracking()
+            .Where(t => t.Id == teamId)
+            .Select(t => (int?)t.CupId)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<Cup?> GetByIdForUpdateAsync(int cupId)
+    {
+        return await _context.Cups
+            .FromSqlInterpolated(
+                $"SELECT * FROM [Cups] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {cupId}")
+            .AsTracking()
+            .SingleOrDefaultAsync();
+    }
+
+    public async Task ExecuteInTransactionAsync(Func<Task> operation)
+    {
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted);
+
+        try
+        {
+            await operation();
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 }
