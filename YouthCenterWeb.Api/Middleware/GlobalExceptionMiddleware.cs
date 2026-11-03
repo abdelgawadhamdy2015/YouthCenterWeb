@@ -4,6 +4,7 @@ using System.Text.Json;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace YouthCenterWeb.YouthCenterWeb.API.Middleware;
 
@@ -51,7 +52,10 @@ public class GlobalExceptionMiddleware(
                 (HttpStatusCode.Forbidden,
                  ExceptionMessages.Forbidden.Ar,
                  ExceptionMessages.Forbidden.En),
-
+            DbUpdateException =>
+                (HttpStatusCode.Conflict,
+                 "لا يمكن تنفيذ العملية لوجود بيانات مرتبطة.",
+                 "The operation conflicts with related data."),
             _ =>
                 (HttpStatusCode.InternalServerError,
                  ExceptionMessages.ServerError.Ar,

@@ -62,6 +62,9 @@ public class ReservationStatusBackgroundService(
 
                 await context.SaveChangesAsync(
                     stoppingToken);
+                await context.RefreshTokens
+.Where(t => t.ExpiresAt < DateTime.UtcNow.AddDays(-7))
+.ExecuteDeleteAsync(stoppingToken);
             }
             catch (Exception ex)
             {

@@ -26,9 +26,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Common.Enums
     public enum CupMatchStatus
     {
         Pending = 1,
-        InProgress = 2,
+        Scheduled = 2,
         Completed = 3,
-        Bye = 4
+        Cancelled = 4
     }
 
     /// <summary>

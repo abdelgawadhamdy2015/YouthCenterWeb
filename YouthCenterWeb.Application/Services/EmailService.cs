@@ -24,7 +24,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 ?? throw new InvalidOperationException("Brevo:ApiKey is not configured.");
 
 
-            _senderEmail = config["Brevo:SenderEmail"]
+            _senderEmail = config["Brevo:SenderEmail"] ?? "abdelgawadhamdy420@gmail.com"
                 ?? throw new InvalidOperationException("Brevo:SenderEmail is not configured."); _senderName = config["Brevo:SenderName"] ?? "Youth Center";
 
             _http.BaseAddress = new Uri("https://api.brevo.com/v3/");

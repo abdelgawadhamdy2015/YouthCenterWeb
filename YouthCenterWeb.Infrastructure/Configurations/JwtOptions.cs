@@ -10,7 +10,7 @@ public sealed class JwtOptions
 
     public string Audience { get; init; } = string.Empty;
 
-    public int AccessTokenMinutes { get; init; } = 15;
+    public int AccessTokenMinutes { get; init; } = 1;
 
-    public int RefreshTokenDays { get; init; } = 30;
+    public int RefreshTokenDays { get; init; } = 10;
 }

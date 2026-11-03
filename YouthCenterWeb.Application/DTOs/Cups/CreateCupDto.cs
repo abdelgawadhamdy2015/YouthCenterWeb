@@ -12,8 +12,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
 
         public int YouthCenterActivityId { get; set; }
 
-        public CupFormat Format { get; set; }
-
+        public CupFormat Format { get; set; } = CupFormat.RoundRobin;
         public int MaxTeams { get; set; }
 
         public int GroupSize { get; set; } = 4;

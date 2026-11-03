@@ -35,5 +35,19 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
         }
+
+        public Task<User?> GetByIdAsync(int id) =>
+    _context.Users
+        .Include(u => u.Activity)
+        .Include(u => u.YouthCenter)
+        .Include(u => u.Reservations)
+        .FirstOrDefaultAsync(x => x.Id == id);
+
+        public async Task ClearSessionAsync(User user)
+        {
+            user.CurrentSessionId = null;
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
     }
 }

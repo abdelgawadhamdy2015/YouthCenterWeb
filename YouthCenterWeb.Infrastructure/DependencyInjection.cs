@@ -78,7 +78,7 @@ public static class DependencyInjection
         services.AddScoped<ICupRepo, CupRepo>();
         services.AddScoped<IAvailabilityRepo, AvailabilityRepo>();
         services.AddScoped<IOtpRepo, OtpRepo>();
-
+        services.AddScoped<IRefreshTokenRepo, RefreshTokenRepo>();
         // ── Services ──────────────────────────────────────────────────────
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IAuthService, AuthService>();

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Api.Controllers;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
@@ -15,7 +16,7 @@ namespace YouthCenterWeb.YouthCenterWeb.API.Controllers;
 [ApiController]
 [Authorize]
 
-public class CupsController(ICupService cupService) : ControllerBase
+public class CupsController(ICupService cupService) : ApiControllerBase
 {
     private readonly ICupService _cupService = cupService;
 
@@ -66,10 +67,8 @@ public class CupsController(ICupService cupService) : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateCupDto dto)
     {
         var (userId, role, youthCenterId) = GetAdminContext();
-
         var result = await _cupService.CreateAsync(dto, userId, role, youthCenterId);
-
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        return CreatedResult(nameof(GetById), new { id = result.Id }, result);
     }
 
     [Authorize(policy: Policies.RequireAdmin)]
@@ -88,10 +87,8 @@ public class CupsController(ICupService cupService) : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         var (_, role, youthCenterId) = GetAdminContext();
-
         await _cupService.DeleteAsync(id, role, youthCenterId);
-
-        return NoContent();
+        return Deleted();                       // بدل NoContent()
     }
 
     #endregion
