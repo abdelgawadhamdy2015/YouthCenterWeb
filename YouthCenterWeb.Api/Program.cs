@@ -57,10 +57,10 @@ builder.Services.AddRateLimiter(options =>
             Result = 0,
             Alert = new Alert
             {
-                MessageAr = "محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.",
-                MessageEn = "Too many requests. Please try again shortly."
+                MessageAr = "حدث خطأ غير متوقع في الخادم.",
+                MessageEn = "Unexpected server error."
             }
-        }, ct);
+        });
     };
 
     // تسجيل الدخول / التسجيل / إعادة تعيين الباسورد: 5 محاولات في الدقيقة لكل IP

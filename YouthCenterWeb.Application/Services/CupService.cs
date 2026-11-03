@@ -612,7 +612,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     winnerId = match.TeamBId;
                 // else: draw, winnerId stays null
 
-                await _cupRepo.EnterMatchResultAsync(matchId, dto.ScoreA, dto.ScoreB, winnerId);
+                await _cupRepo.EnterMatchResultAsync(
+                    matchId: matchId,
+                    scoreA: dto.ScoreA,
+                    scoreB: dto.ScoreB,
+                    winnerId: winnerId);
                 await UpdateStandings(match, dto);
 
                 var allDone = await _cupRepo.AllGroupMatchesCompletedAsync(match.CupId);
@@ -652,8 +656,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
 
                 await _cupRepo.EnterMatchResultAsync(
-                    matchId, dto.ScoreA, dto.ScoreB, winnerId,
-                    dto.PenaltyScoreA, dto.PenaltyScoreB);
+      matchId: matchId,
+      scoreA: dto.ScoreA,
+      scoreB: dto.ScoreB,
+      penaltyScoreA: dto.PenaltyScoreA,
+      penaltyScoreB: dto.PenaltyScoreB,
+      winnerId: winnerId);
 
                 await _cupRepo.AdvanceWinnerToNextRoundAsync(
                     match.CupId, match.Round, match.MatchNumber, winnerId!.Value);
@@ -723,6 +731,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: "This time slot is already reserved or has another match scheduled on this activity.");
 
             match.ScheduledAt = scheduledAt;
+            if (match.Status == CupMatchStatus.Pending)
+                match.Status = CupMatchStatus.Scheduled;
             await _cupRepo.UpdateMatchAsync(match);
 
             // Scheduling a single match is a per-match detail, not a cup-wide

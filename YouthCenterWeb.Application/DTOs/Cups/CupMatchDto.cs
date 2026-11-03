@@ -35,7 +35,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
         public int? ScoreA { get; set; }
 
         public int? ScoreB { get; set; }
-
+        public int? PenaltyScoreA { get; set; }
+        public int? PenaltyScoreB { get; set; }
         public DateTime? ScheduledAt { get; set; }
 
         public DateTime CreatedAt { get; set; }
