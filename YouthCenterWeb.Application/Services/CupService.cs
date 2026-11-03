@@ -232,7 +232,56 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             cup.Status = CupStatus.Draft;
             cup.CurrentTeamCount = 0;
             cup.CreatedAt = DateTime.UtcNow;
+            ValidateCupStructure(
+                dto.Format,
+                dto.MaxTeams,
+                dto.GroupSize,
+                dto.TeamsAdvancingPerGroup);
 
+            if (dto.RegistrationDeadline <= DateTime.UtcNow)
+                throw new BusinessException(
+                    messageAr: "الموعد النهائي للتسجيل يجب أن يكون في المستقبل.",
+                    messageEn: "Registration deadline must be in the future.");
+
+            if (dto.StartDate <= DateTime.UtcNow)
+                throw new BusinessException(
+                    messageAr: "تاريخ بداية البطولة يجب أن يكون في المستقبل.",
+                    messageEn: "Cup start date must be in the future.");
+
+            if (dto.StartDate <= dto.RegistrationDeadline)
+                throw new BusinessException(
+                    messageAr: "تاريخ بداية البطولة يجب أن يكون بعد الموعد النهائي للتسجيل.",
+                    messageEn: "Start date must be after the registration deadline.");
+
+            if (dto.EntryFee < 0)
+                throw new BusinessException(
+                    messageAr: "رسوم الاشتراك لا يمكن أن تكون سالبة.",
+                    messageEn: "Entry fee cannot be negative.");
+            ValidateCupStructure(
+        dto.Format,
+        dto.MaxTeams,
+        dto.GroupSize,
+        dto.TeamsAdvancingPerGroup);
+
+            if (dto.RegistrationDeadline <= DateTime.UtcNow)
+                throw new BusinessException(
+                    messageAr: "الموعد النهائي للتسجيل يجب أن يكون في المستقبل.",
+                    messageEn: "Registration deadline must be in the future.");
+
+            if (dto.StartDate <= DateTime.UtcNow)
+                throw new BusinessException(
+                    messageAr: "تاريخ بداية البطولة يجب أن يكون في المستقبل.",
+                    messageEn: "Cup start date must be in the future.");
+
+            if (dto.StartDate <= dto.RegistrationDeadline)
+                throw new BusinessException(
+                    messageAr: "تاريخ بداية البطولة يجب أن يكون بعد الموعد النهائي للتسجيل.",
+                    messageEn: "Start date must be after the registration deadline.");
+
+            if (dto.EntryFee < 0)
+                throw new BusinessException(
+                    messageAr: "رسوم الاشتراك لا يمكن أن تكون سالبة.",
+                    messageEn: "Entry fee cannot be negative.");
             await _cupRepo.CreateAsync(cup);
 
             // Cups are created as Draft — nobody's registration-eligible yet, so we
@@ -280,113 +329,103 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 cup.Status = (CupStatus)dto.Status!;
             }
 
-            // ── Structural fields (Draft only) ────────────────────────────────
-            bool registrationHasStarted = cup.Status == CupStatus.RegistrationOpen
-                                    || cup.Status == CupStatus.GroupStage
-                                    || cup.Status == CupStatus.KnockoutStage;
+            bool registrationHasStarted =
+     cup.Status == CupStatus.RegistrationOpen ||
+     cup.Status == CupStatus.GroupStage ||
+     cup.Status == CupStatus.KnockoutStage;
+
+            if (!string.IsNullOrWhiteSpace(dto.NameAr))
+                cup.NameAr = dto.NameAr.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.NameEn))
+                cup.NameEn = dto.NameEn.Trim();
 
             if (!registrationHasStarted)
             {
-                if (!string.IsNullOrWhiteSpace(dto.NameAr))
-                    cup.NameAr = dto.NameAr.Trim();
+                var finalMaxTeams = dto.MaxTeams ?? cup.MaxTeams;
+                var finalGroupSize = dto.GroupSize ?? cup.GroupSize;
+                var finalAdvancing =
+                    dto.TeamsAdvancingPerGroup ?? cup.TeamsAdvancingPerGroup;
+                var finalFormat = dto.Format ?? cup.Format;
 
-                if (!string.IsNullOrWhiteSpace(dto.NameEn))
-                    cup.NameEn = dto.NameEn.Trim();
+                ValidateCupStructure(
+                    finalFormat,
+                    finalMaxTeams,
+                    finalGroupSize,
+                    finalAdvancing);
 
-                if (dto.MaxTeams != null && dto.MaxTeams > 0)
-                {
-                    if (dto.MaxTeams % dto.GroupSize != 0)
-                        throw new BusinessException(
-                            messageAr: $"عدد الفرق ({dto.MaxTeams}) يجب أن يكون قابلاً للقسمة على حجم المجموعة ({dto.GroupSize}).",
-                            messageEn: $"MaxTeams ({dto.MaxTeams}) must be divisible by GroupSize ({dto.GroupSize}).");
-
-                    cup.MaxTeams = (int)dto.MaxTeams!;
-                }
-
-                if (dto.GroupSize != null && dto.GroupSize > 1)
-                {
-                    if (cup.MaxTeams % dto.GroupSize != 0)
-                        throw new BusinessException(
-                            messageAr: $"حجم المجموعة ({dto.GroupSize}) لا يقسم عدد الفرق ({cup.MaxTeams}) بالتساوي.",
-                            messageEn: $"GroupSize ({dto.GroupSize}) does not divide evenly into MaxTeams ({cup.MaxTeams}).");
-
-                    cup.GroupSize = (int)dto.GroupSize!;
-                }
-
-                if (dto.TeamsAdvancingPerGroup != null && dto.TeamsAdvancingPerGroup > 0)
-                {
-                    if (dto.TeamsAdvancingPerGroup >= dto.GroupSize)
-                        throw new BusinessException(
-                            messageAr: $"عدد الفرق المتأهلة من كل مجموعة ({dto.TeamsAdvancingPerGroup}) يجب أن يكون أقل من حجم المجموعة ({dto.GroupSize}).",
-                            messageEn: $"TeamsAdvancingPerGroup ({dto.TeamsAdvancingPerGroup}) must be less than GroupSize ({dto.GroupSize}).");
-
-                    cup.TeamsAdvancingPerGroup = (int)dto.TeamsAdvancingPerGroup!;
-                }
-
-                if (dto.Format != null && dto.Format != default)
-                    cup.Format = (CupFormat)dto.Format!;
+                cup.MaxTeams = finalMaxTeams;
+                cup.GroupSize = finalGroupSize;
+                cup.TeamsAdvancingPerGroup = finalAdvancing;
+                cup.Format = finalFormat;
             }
             else
             {
-                // Names still editable post-registration (typo fixes)
-                if (!string.IsNullOrWhiteSpace(dto.NameAr))
-                    cup.NameAr = dto.NameAr.Trim();
-
-                if (!string.IsNullOrWhiteSpace(dto.NameEn))
-                    cup.NameEn = dto.NameEn.Trim();
-
                 bool structureChanged =
-                    (dto.MaxTeams > 0 && dto.MaxTeams != cup.MaxTeams) ||
-                    (dto.GroupSize > 1 && dto.GroupSize != cup.GroupSize) ||
-                    (dto.TeamsAdvancingPerGroup > 0 &&
-                    dto.TeamsAdvancingPerGroup != cup.TeamsAdvancingPerGroup);
+                    (dto.MaxTeams.HasValue && dto.MaxTeams.Value != cup.MaxTeams) ||
+                    (dto.GroupSize.HasValue && dto.GroupSize.Value != cup.GroupSize) ||
+                    (dto.TeamsAdvancingPerGroup.HasValue &&
+                     dto.TeamsAdvancingPerGroup.Value != cup.TeamsAdvancingPerGroup) ||
+                    (dto.Format.HasValue && dto.Format.Value != cup.Format);
 
                 if (structureChanged)
                     throw new BusinessException(
-                        messageAr: $"لا يمكن تغيير عدد الفرق أو حجم المجموعة أو عدد المتأهلين بعد فتح التسجيل (الحالة الحالية: '{cup.Status}').",
-                        messageEn: $"MaxTeams, GroupSize and TeamsAdvancingPerGroup cannot be changed once registration has opened (status: '{cup.Status}').");
+                        messageAr: "لا يمكن تغيير إعدادات نظام البطولة أو عدد الفرق أو حجم المجموعات بعد بدء التسجيل.",
+                        messageEn: "Cup format, team count and group settings cannot be changed after registration starts.");
             }
-
-            // ── Dates & fee (Draft + RegistrationOpen only) ───────────────────
-            bool datesEditable = cup.Status == CupStatus.Draft
-                            || cup.Status == CupStatus.RegistrationOpen;
+            bool datesEditable =
+     cup.Status == CupStatus.Draft ||
+     cup.Status == CupStatus.RegistrationOpen;
 
             if (datesEditable)
             {
-                if (dto.RegistrationDeadline != null && dto.RegistrationDeadline != default)
-                {
-                    if (dto.RegistrationDeadline < DateTime.UtcNow)
-                        throw new BusinessException(
-                            messageAr: "لا يمكن أن يكون الموعد النهائي للتسجيل في الماضي.",
-                            messageEn: "Registration deadline cannot be in the past.");
+                var finalDeadline =
+                    dto.RegistrationDeadline ?? cup.RegistrationDeadline;
 
-                    cup.RegistrationDeadline = (DateTime)dto.RegistrationDeadline!;
+                var finalStartDate =
+                    dto.StartDate ?? cup.StartDate;
+
+                if (dto.RegistrationDeadline.HasValue &&
+                    finalDeadline <= DateTime.UtcNow)
+                {
+                    throw new BusinessException(
+                        messageAr: "الموعد النهائي للتسجيل يجب أن يكون في المستقبل.",
+                        messageEn: "Registration deadline must be in the future.");
                 }
 
-                if (dto.StartDate != default)
+                if (dto.StartDate.HasValue &&
+                    finalStartDate <= DateTime.UtcNow)
                 {
-                    if (dto.StartDate < DateTime.UtcNow)
-                        throw new BusinessException(
-                            messageAr: "لا يمكن أن يكون تاريخ البداية في الماضي.",
-                            messageEn: "Start date cannot be in the past.");
-
-                    if (cup.RegistrationDeadline != default &&
-                        dto.StartDate <= cup.RegistrationDeadline)
-                        throw new BusinessException(
-                            messageAr: $"تاريخ البداية ({dto.StartDate:yyyy-MM-dd}) يجب أن يكون بعد الموعد النهائي للتسجيل ({cup.RegistrationDeadline:yyyy-MM-dd}).",
-                            messageEn: $"Start date ({dto.StartDate:yyyy-MM-dd}) must be after registration deadline ({cup.RegistrationDeadline:yyyy-MM-dd}).");
-
-                    cup.StartDate = (DateTime)dto.StartDate!;
+                    throw new BusinessException(
+                        messageAr: "تاريخ البداية يجب أن يكون في المستقبل.",
+                        messageEn: "Start date must be in the future.");
                 }
+
+                if (finalDeadline != default &&
+                    finalStartDate != default &&
+                    finalStartDate <= finalDeadline)
+                {
+                    throw new BusinessException(
+                        messageAr: "تاريخ البداية يجب أن يكون بعد الموعد النهائي للتسجيل.",
+                        messageEn: "Start date must be after the registration deadline.");
+                }
+
+                if (dto.RegistrationDeadline.HasValue)
+                    cup.RegistrationDeadline = finalDeadline;
+
+                if (dto.StartDate.HasValue)
+                    cup.StartDate = finalStartDate;
 
                 if (dto.EntryFee.HasValue)
                 {
                     if (dto.EntryFee.Value < 0)
                         throw new BusinessException(
-                            messageAr: "لا يمكن أن تكون رسوم الاشتراك بالسالب.",
+                            messageAr: "رسوم الاشتراك لا يمكن أن تكون سالبة.",
                             messageEn: "Entry fee cannot be negative.");
 
-                    cup.EntryFee = dto.EntryFee.Value == 0 ? null : dto.EntryFee.Value;
+                    cup.EntryFee = dto.EntryFee.Value == 0
+                        ? null
+                        : dto.EntryFee.Value;
                 }
             }
 
@@ -430,6 +469,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             int userId,
             string teamName)
         {
+
             Cup cup = await _cupRepo.GetByIdAsync(cupId)
                    ?? throw new NotFoundException(
                        messageAr: "لم يتم العثور على البطولة المطلوبة.",
@@ -444,7 +484,20 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 throw new BusinessException(
                     messageAr: $"هذا البطولة ممتلئة ({cup.MaxTeams}/{cup.MaxTeams} فريق).",
                     messageEn: $"This cup is full ({cup.MaxTeams}/{cup.MaxTeams} teams).");
+            if (cup.RegistrationDeadline <= DateTime.UtcNow)
+                throw new BusinessException(
+                    messageAr: "انتهت فترة التسجيل في هذه البطولة.",
+                    messageEn: "Registration deadline has passed.");
 
+            if (string.IsNullOrWhiteSpace(teamName))
+                throw new BusinessException(
+                    messageAr: "يجب إدخال اسم الفريق.",
+                    messageEn: "Team name is required.");
+
+            if (teamName.Length > 100)
+                throw new BusinessException(
+                    messageAr: "اسم الفريق يجب ألا يتجاوز 100 حرف.",
+                    messageEn: "Team name cannot exceed 100 characters.");
             var existing = await _cupRepo.GetTeamByCupAndUserAsync(cupId, userId);
             if (existing != null)
             {
@@ -462,7 +515,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             {
                 CupId = cupId,
                 CaptainUserId = userId,
-                TeamName = teamName.Trim(),
+                TeamName = teamName,
                 Status = CupTeamStatus.Pending,
                 RegisteredAt = DateTime.UtcNow
             };
@@ -482,85 +535,140 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
         #region Accept And REject
         public async Task AcceptJoinRequestAsync(
-            int teamId,
-            UserRole callerRole,
-            int callerYouthCenterId)
+       int teamId,
+       UserRole callerRole,
+       int callerYouthCenterId)
         {
-            var team = await _cupRepo.GetTeamByIdAsync(teamId)
+            // نحتاج CupId فقط لتحديد السجل الذي سنحجزه.
+            var cupId = await _cupRepo.GetCupIdByTeamIdAsync(teamId)
+                ?? throw new NotFoundException(
+                    messageAr: $"لم يتم العثور على الفريق بالمعرف ({teamId}).",
+                    messageEn: $"Team ({teamId}) was not found.");
+
+            Cup? updatedCup = null;
+            CupTeam? acceptedTeam = null;
+            bool cupCompleted = false;
+
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                // يجب أن يكون أول قراءة داخل المعاملة هي قفل البطولة.
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على البطولة المطلوبة.",
+                        messageEn: "Cup not found.");
+
+                await RequireAdminOfCup(
+                    cup,
+                    callerRole,
+                    callerYouthCenterId);
+
+                // نقرأ الفريق بعد الحصول على القفل، وليس قبله.
+                var team = await _cupRepo.GetTeamByIdAsync(teamId)
                     ?? throw new NotFoundException(
                         messageAr: $"لم يتم العثور على الفريق بالمعرف ({teamId}).",
                         messageEn: $"Team ({teamId}) was not found.");
 
-            var cup = await _cupRepo.GetByIdAsync(team.CupId)
-                    ?? throw new NotFoundException(
-                        messageAr: "لم يتم العثور على البطولة المرتبطة بهذا الفريق.",
-                        messageEn: "Cup associated with this team was not found.");
+                if (team.CupId != cupId)
+                    throw new BusinessException(
+                        messageAr: "الفريق لا ينتمي إلى هذه البطولة.",
+                        messageEn: "The team does not belong to this cup.");
 
-            await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
+                if (team.Status != CupTeamStatus.Pending)
+                    throw new BusinessException(
+                        messageAr: $"لا يمكن قبول هذا الطلب لأن حالته الحالية هي '{team.Status}'.",
+                        messageEn: $"This request is already '{team.Status}' and cannot be accepted again.");
 
-            if (team.Status != CupTeamStatus.Pending)
-                throw new BusinessException(
-                    messageAr: $"لا يمكن قبول هذا الطلب لأن حالته الحالية هي '{team.Status}'.",
-                    messageEn: $"This request is already '{team.Status}' and cannot be accepted again.");
+                if (cup.Status != CupStatus.RegistrationOpen)
+                    throw new BusinessException(
+                        messageAr: $"لا يمكن قبول الطلبات عندما تكون حالة البطولة '{cup.Status}'.",
+                        messageEn: $"Cannot accept requests when cup status is '{cup.Status}'.");
 
-            if (cup.Status != CupStatus.RegistrationOpen)
-                throw new BusinessException(
-                    messageAr: $"لا يمكن قبول الطلبات عندما تكون حالة البطولة '{cup.Status}'.",
-                    messageEn: $"Cannot accept requests when cup status is '{cup.Status}'.");
+                if (cup.CurrentTeamCount >= cup.MaxTeams)
+                    throw new BusinessException(
+                        messageAr: "البطولة ممتلئة بالفعل. يرجى رفض هذا الطلب بدلاً من ذلك.",
+                        messageEn: "The cup is already full. Reject this request instead.");
 
-            if (cup.CurrentTeamCount >= cup.MaxTeams)
-                throw new BusinessException(
-                    messageAr: "البطولة ممتلئة بالفعل. يرجى رفض هذا الطلب بدلاً من ذلك.",
-                    messageEn: "The cup is already full. Reject this request instead.");
+                updatedCup = await _cupRepo.AcceptTeamAndIncrementCountAsync(teamId);
+                acceptedTeam = team;
 
-            var updatedCup = await _cupRepo.AcceptTeamAndIncrementCountAsync(teamId);
+                if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
+                {
+                    await GenerateGroupsAsync(updatedCup.Id);
+                    await GenerateGroupMatchesAsync(updatedCup.Id);
 
+                    updatedCup.Status = CupStatus.GroupStage;
+                    await _cupRepo.UpdateAsync(updatedCup);
 
+                    cupCompleted = true;
+                }
+            });
+
+            // لا نرسل أي إشعار قبل نجاح Commit.
             await notificationService.SendToUserAsync(
-     userId: team.CaptainUserId,
-     title: cup.NameEn,
-     body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been approved. Good luck!",
-     type: "cup", targetId: cup.Id);
-            if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
-            {
-                await GenerateGroupsAsync(updatedCup.Id);
-                await GenerateGroupMatchesAsync(updatedCup.Id);
+                userId: acceptedTeam!.CaptainUserId,
+                title: updatedCup!.NameEn,
+                body: $"Your team's request to join the \"{updatedCup.NameEn}\" tournament has been approved. Good luck!",
+                type: "cup",
+                targetId: updatedCup.Id);
 
-                updatedCup.Status = CupStatus.GroupStage;
-                await _cupRepo.UpdateAsync(updatedCup);
-                await NotifyCupStatusChangeAsync(updatedCup);
+            if (cupCompleted)
+            {
+                await NotifyCupStatusChangeAsync(updatedCup!);
             }
         }
 
         public async Task RejectJoinRequestAsync(
-            int teamId,
-            UserRole callerRole,
-            int callerYouthCenterId)
+     int teamId,
+     UserRole callerRole,
+     int callerYouthCenterId)
         {
-            var team = await _cupRepo.GetTeamByIdAsync(teamId)
+            var cupId = await _cupRepo.GetCupIdByTeamIdAsync(teamId)
+                ?? throw new NotFoundException(
+                    messageAr: $"لم يتم العثور على الفريق بالمعرف ({teamId}).",
+                    messageEn: $"Team ({teamId}) was not found.");
+
+            Cup? cupForNotification = null;
+            CupTeam? rejectedTeam = null;
+
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على البطولة المطلوبة.",
+                        messageEn: "Cup not found.");
+
+                await RequireAdminOfCup(
+                    cup,
+                    callerRole,
+                    callerYouthCenterId);
+
+                var team = await _cupRepo.GetTeamByIdAsync(teamId)
                     ?? throw new NotFoundException(
                         messageAr: $"لم يتم العثور على الفريق بالمعرف ({teamId}).",
                         messageEn: $"Team ({teamId}) was not found.");
 
-            var cup = await _cupRepo.GetByIdAsync(team.CupId)
-                    ?? throw new NotFoundException(
-                        messageAr: "لم يتم العثور على البطولة المرتبطة بهذا الفريق.",
-                        messageEn: "Cup associated with this team was not found.");
+                if (team.CupId != cupId)
+                    throw new BusinessException(
+                        messageAr: "الفريق لا ينتمي إلى هذه البطولة.",
+                        messageEn: "The team does not belong to this cup.");
 
-            await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
+                if (team.Status != CupTeamStatus.Pending)
+                    throw new BusinessException(
+                        messageAr: $"يمكن رفض الطلبات المعلقة فقط. الحالة الحالية: '{team.Status}'.",
+                        messageEn: $"Only pending requests can be rejected. Current status: '{team.Status}'.");
 
-            if (team.Status != CupTeamStatus.Pending)
-                throw new BusinessException(
-                    messageAr: $"يمكن رفض الطلبات المعلقة فقط. الحالة الحالية: '{team.Status}'.",
-                    messageEn: $"Only pending requests can be rejected. Current status: '{team.Status}'.");
+                await _cupRepo.RejectTeamAsync(teamId);
 
-            await _cupRepo.RejectTeamAsync(teamId);
+                cupForNotification = cup;
+                rejectedTeam = team;
+            });
 
             await notificationService.SendToUserAsync(
-     userId: team.CaptainUserId,
-     title: cup.NameEn,
-     body: $"Your team's request to join the \"{cup.NameEn}\" tournament has been declined.",
-     type: "cup", targetId: cup.Id);
+                userId: rejectedTeam!.CaptainUserId,
+                title: cupForNotification!.NameEn,
+                body: $"Your team's request to join the \"{cupForNotification.NameEn}\" tournament has been declined.",
+                type: "cup",
+                targetId: cupForNotification.Id);
         }
         #endregion
 
@@ -948,6 +1056,61 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 CupStatus.KnockoutStage => "Completed, Cancelled",
                 _ => "none"
             };
+
+        private static void ValidateCupStructure(
+CupFormat format,
+int maxTeams,
+int groupSize,
+int teamsAdvancingPerGroup)
+        {
+            if (maxTeams < 2)
+                throw new BusinessException(
+                    messageAr: "يجب أن يكون عدد الفرق فريقين على الأقل.",
+                    messageEn: "MaxTeams must be at least 2.");
+
+            if (format == CupFormat.SingleElimination)
+            {
+                // Current generation logic always creates groups.
+                // Do not allow this format until its dedicated bracket generation is implemented.
+                throw new BusinessException(
+                    messageAr: "نظام خروج المغلوب المباشر غير مدعوم حاليًا.",
+                    messageEn: "Single elimination format is not supported yet.");
+            }
+
+            if (format != CupFormat.RoundRobin)
+                throw new BusinessException(
+                    messageAr: "نظام البطولة غير صالح.",
+                    messageEn: "Invalid cup format.");
+
+            if (groupSize < 2 || groupSize > maxTeams)
+                throw new BusinessException(
+                    messageAr: "حجم المجموعة يجب أن يكون بين 2 وعدد الفرق الكلي.",
+                    messageEn: "GroupSize must be between 2 and MaxTeams.");
+
+            if (maxTeams % groupSize != 0)
+                throw new BusinessException(
+                    messageAr: "عدد الفرق يجب أن يقبل القسمة على حجم المجموعة دون باقٍ.",
+                    messageEn: "MaxTeams must be divisible by GroupSize.");
+
+            if (teamsAdvancingPerGroup < 1 ||
+                teamsAdvancingPerGroup >= groupSize)
+                throw new BusinessException(
+                    messageAr: "عدد المتأهلين يجب أن يكون واحدًا على الأقل وأقل من حجم المجموعة.",
+                    messageEn: "TeamsAdvancingPerGroup must be at least 1 and less than GroupSize.");
+
+            int groupCount = maxTeams / groupSize;
+            int knockoutTeams = groupCount * teamsAdvancingPerGroup;
+
+            bool isPowerOfTwo =
+                knockoutTeams >= 2 &&
+                (knockoutTeams & (knockoutTeams - 1)) == 0;
+
+            if (!isPowerOfTwo)
+                throw new BusinessException(
+                    messageAr: $"عدد المتأهلين للأدوار الإقصائية ({knockoutTeams}) يجب أن يكون قوة للعدد 2.",
+                    messageEn: $"The number of knockout teams ({knockoutTeams}) must be a power of 2.");
+        }
     }
-    #endregion
+
+        #endregion
 }
