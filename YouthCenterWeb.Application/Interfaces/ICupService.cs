@@ -111,4 +111,6 @@ int cupId, string teamName, int? captainUserId,
 UserRole callerRole, int callerYouthCenterId);
 
         Task CancelMyJoinRequestAsync(int cupId, int userId);
+        Task StartCupAsync(int cupId, UserRole role, int callerYouthCenterId);
+        Task RemoveTeamAsync(int cupId, int teamId, UserRole role, int callerYouthCenterId);
 }

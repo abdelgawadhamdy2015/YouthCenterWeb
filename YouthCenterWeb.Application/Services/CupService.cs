@@ -1152,7 +1152,96 @@ int teamsAdvancingPerGroup)
         {
             throw new NotImplementedException();
         }
+        #endregion
+
+        #region  Start Cup
+        public async Task StartCupAsync(int cupId, UserRole callerRole, int callerYouthCenterId)
+        {
+            Cup? started = null;
+
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على البطولة.", messageEn: "Cup not found.");
+
+                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
+
+                if (cup.Status != CupStatus.RegistrationOpen)
+                    throw new BusinessException(
+                        messageAr: "يمكن بدء البطولة فقط أثناء فترة التسجيل.",
+                        messageEn: "A cup can only be started while registration is open.");
+
+                var accepted = (await _cupRepo.GetAcceptedTeamsByCupAsync(cupId)).ToList();
+
+                // يتحقق: القسمة على حجم المجموعة + المتأهلين قوة 2
+                ValidateCupStructure(cup.Format, accepted.Count, cup.GroupSize, cup.TeamsAdvancingPerGroup);
+
+                // الطلبات المعلقة تتقفل
+                foreach (var p in (await _cupRepo.GetPendingTeamsByCupAsync(cupId)).ToList())
+                    await _cupRepo.RejectTeamAsync(p.Id);
+
+                cup.MaxTeams = accepted.Count;
+                cup.CurrentTeamCount = accepted.Count;
+                cup.Status = CupStatus.GroupStage;
+                await _cupRepo.UpdateAsync(cup);
+
+                await GenerateGroupsAsync(cupId);
+                await GenerateGroupMatchesAsync(cupId);
+                started = cup;
+            });
+
+            await NotifyCupStatusChangeAsync(started!);
+        }
+        #endregion
+
+        public async Task RemoveTeamAsync(int cupId, int teamId, UserRole callerRole, int callerYouthCenterId)
+        {
+            CupTeam? removed = null;
+            Cup? cupRef = null;
+
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على البطولة.", messageEn: "Cup not found.");
+
+                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
+
+                if (cup.Status != CupStatus.Draft && cup.Status != CupStatus.RegistrationOpen)
+                    throw new BusinessException(
+                        messageAr: "لا يمكن حذف فريق بعد بدء البطولة.",
+                        messageEn: "Teams cannot be removed after the cup has started.");
+
+                var team = await _cupRepo.GetTeamByIdAsync(teamId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على الفريق.", messageEn: "Team not found.");
+
+                if (team.CupId != cupId)
+                    throw new BusinessException(
+                        messageAr: "الفريق لا ينتمي لهذه البطولة.",
+                        messageEn: "The team does not belong to this cup.");
+
+                if (team.Status == CupTeamStatus.Accepted && cup.CurrentTeamCount > 0)
+                {
+                    cup.CurrentTeamCount--;
+                    await _cupRepo.UpdateAsync(cup);
+                }
+
+                await _cupRepo.DeleteTeamAsync(teamId);
+                removed = team;
+                cupRef = cup;
+            });
+
+            if (removed!.CaptainUserId != cupRef!.CreatedByAdminId)
+                await notificationService.SendToUserAsync(
+                    userId: removed.CaptainUserId ?? 0,
+                    title: cupRef.NameEn,
+                    body: $"Your team \"{removed.TeamName}\" was removed from \"{cupRef.NameEn}\".",
+                    type: "cup", targetId: cupRef.Id);
+        }
     }
 
-        #endregion
+
+
 }

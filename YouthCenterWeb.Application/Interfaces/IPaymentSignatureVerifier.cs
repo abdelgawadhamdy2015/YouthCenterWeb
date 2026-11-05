@@ -6,5 +6,5 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 
 public interface IPaymentSignatureVerifier
 {
-    bool IsValid(PaymobWebhookDto payload);
+    bool IsValid(PaymobWebhookDto payload, string? hmac);
 }

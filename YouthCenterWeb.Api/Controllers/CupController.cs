@@ -218,6 +218,25 @@ public class CupsController(ICupService cupService) : ApiControllerBase
 
     #endregion
 
+
+    [Authorize(policy: Policies.RequireAdmin)]
+    [HttpPost("{cupId:int}/start")]
+    public async Task<IActionResult> Start(int cupId)
+    {
+        var (_, role, centerId) = GetAdminContext();
+        await _cupService.StartCupAsync(cupId, role, centerId);
+        return Ok(ApiResultRaw("تم بدء البطولة.", "Cup started."));
+    }
+
+    [Authorize(policy: Policies.RequireAdmin)]
+    [HttpDelete("{cupId:int}/teams/{teamId:int}")]
+    public async Task<IActionResult> RemoveTeam(int cupId, int teamId)
+    {
+        var (_, role, centerId) = GetAdminContext();
+        await _cupService.RemoveTeamAsync(cupId, teamId, role, centerId);
+        return Ok(ApiResultRaw("تم حذف الفريق.", "Team removed."));
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────────────

@@ -251,7 +251,13 @@ public class CupRepo(AppDbContext context) : ICupRepo
 
         await _context.SaveChangesAsync();
     }
-
+    public async Task DeleteTeamAsync(int teamId)
+    {
+        var team = await _context.CupTeams.FirstOrDefaultAsync(t => t.Id == teamId);
+        if (team is null) return;
+        _context.CupTeams.Remove(team);
+        await _context.SaveChangesAsync();
+    }
     public async Task UpdateTeamStandingsAsync(
         int teamId,
         int pointsDelta,
@@ -409,35 +415,52 @@ public class CupRepo(AppDbContext context) : ICupRepo
     }
     public async Task SeedKnockoutMatchesAsync(int cupId)
     {
+        var cup = await _context.Cups.FirstOrDefaultAsync(c => c.Id == cupId)
+            ?? throw new NotFoundException(
+                messageAr: "لم يتم العثور على البطولة المطلوبة.", messageEn: "Cup not found.");
+
         var groups = await _context.CupGroups
             .Include(g => g.Teams)
             .Where(g => g.CupId == cupId)
             .OrderBy(g => g.GroupNumber)
             .ToListAsync();
 
-        var cup = await _context.Cups.FirstOrDefaultAsync(c => c.Id == cupId)
-            ?? throw new NotFoundException(
-                messageAr: "لم يتم العثور على البطولة المطلوبة.",
-                messageEn: "Cup not found.");
+        // ترتيب كل مجموعة: نقاط ← فارق الأهداف ← الأهداف المسجلة ← Id (ثابت)
+        var ranked = groups.Select(g => g.Teams
+            .OrderByDescending(t => t.Points)
+            .ThenByDescending(t => t.GoalsFor - t.GoalsAgainst)
+            .ThenByDescending(t => t.GoalsFor)
+            .ThenBy(t => t.Id)
+            .ToList()).ToList();
 
-        var firstPlaces = groups
-            .Select(g => g.Teams
-                .OrderByDescending(t => t.Points)
-                .ThenByDescending(t => t.GoalsFor - t.GoalsAgainst)
-                .First())
-            .ToList();
+        int advancing = cup.TeamsAdvancingPerGroup;
+        var pairs = new List<(int A, int B)>();
 
-        var secondPlaces = groups
-            .Select(g => g.Teams
-                .OrderByDescending(t => t.Points)
-                .ThenByDescending(t => t.GoalsFor - t.GoalsAgainst)
-                .Skip(1)
-                .First())
-            .ToList();
+        if (groups.Count == 1)
+        {
+            pairs.Add((ranked[0][0].Id, ranked[0][1].Id));
+        }
+        else if (advancing == 2)
+        {
+            var top = new List<(int, int)>();
+            var bottom = new List<(int, int)>();
+            for (int p = 0; p + 1 < groups.Count; p += 2)
+            {
+                var g1 = ranked[p];
+                var g2 = ranked[p + 1];
+                top.Add((g1[0].Id, g2[1].Id));     // A1 × B2
+                bottom.Add((g2[0].Id, g1[1].Id));  // B1 × A2
+            }
+            pairs.AddRange(top);
+            pairs.AddRange(bottom);
+        }
+        else // advancing == 1: الأول يقابل الأخير
+        {
+            for (int i = 0; i < groups.Count / 2; i++)
+                pairs.Add((ranked[i][0].Id, ranked[groups.Count - 1 - i][0].Id));
+        }
 
-        // Determine which stage is the FIRST knockout round for this bracket
-        // size — must match the same logic used in CreateKnockoutBracket.
-        int knockoutTeams = groups.Count * cup.TeamsAdvancingPerGroup;
+        int knockoutTeams = groups.Count * advancing;
         var firstRoundStage = knockoutTeams switch
         {
             2 => CupMatchStage.FinalMatch,
@@ -447,26 +470,20 @@ public class CupRepo(AppDbContext context) : ICupRepo
             _ => CupMatchStage.RoundOf32
         };
 
-        // Only pull the first-round placeholder slots — this excludes
-        // ThirdPlace and FinalMatch, which must stay empty until winners
-        // are advanced into them later.
-        var firstRoundMatches = await _context.CupMatches
-            .Where(m => m.CupId == cupId
-                     && m.GroupId == null
-                     && m.Stage == firstRoundStage)
+        var firstRound = await _context.CupMatches
+            .Where(m => m.CupId == cupId && m.GroupId == null && m.Stage == firstRoundStage)
             .OrderBy(m => m.MatchNumber)
             .ToListAsync();
 
-        for (int i = 0; i < firstPlaces.Count && i * 2 + 1 < firstRoundMatches.Count; i++)
+        if (firstRound.Count != pairs.Count)
+            throw new BusinessException(
+                messageAr: "عدد مباريات الدور الأول لا يطابق عدد المتأهلين.",
+                messageEn: "First-round match count does not match the qualified teams.");
+
+        for (int i = 0; i < pairs.Count; i++)
         {
-            var matchA = firstRoundMatches[i * 2];
-            var matchB = firstRoundMatches[i * 2 + 1];
-
-            matchA.TeamAId = firstPlaces[i].Id;
-            matchA.TeamBId = secondPlaces[(i + 1) % secondPlaces.Count].Id;
-
-            matchB.TeamAId = firstPlaces[(i + 1) % firstPlaces.Count].Id;
-            matchB.TeamBId = secondPlaces[i].Id;
+            firstRound[i].TeamAId = pairs[i].A;
+            firstRound[i].TeamBId = pairs[i].B;
         }
 
         await _context.SaveChangesAsync();
