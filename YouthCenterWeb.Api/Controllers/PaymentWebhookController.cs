@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YouthCenterWeb.Application.Interfaces;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 
@@ -14,37 +15,52 @@ public class PaymentWebhookController(
     ILogger<PaymentWebhookController> logger) : ControllerBase
 {
     [HttpPost("paymob")]
-    [AllowAnonymous] // explicit — no user JWT involved
-    public async Task<IActionResult> PaymobCallback([FromBody] PaymobWebhookDto payload)
+    [AllowAnonymous]
+    public async Task<IActionResult> PaymobCallback(
+    [FromBody] PaymobWebhookDto payload, [FromQuery] string? hmac)
     {
-        // 1. Verify the signature BEFORE trusting anything in the payload
-        if (!signatureVerifier.IsValid(payload))
+        if (!signatureVerifier.IsValid(payload, hmac ?? payload.Hmac))
         {
-            logger.LogWarning("Invalid Paymob webhook signature. OrderId={OrderId}", payload.Obj?.Order?.Id);
+            logger.LogWarning("Invalid Paymob signature");
             return Unauthorized();
         }
 
-        // 2. Map gateway's reservation reference back to your reservation id
-        var reservationId = payload.Obj?.Order?.MerchantOrderId; // however you passed it when creating the payment
+        var obj = payload.Obj;
+        // أي حاجة مش معاملة نهائية: نرد 200 ونتجاهلها
+        if (payload.Type != "TRANSACTION" || obj is null ||
+            obj.Pending || obj.IsVoided || obj.IsRefunded || obj.HasParentTransaction)
+            return Ok();
 
-        if (payload.Obj?.Success == true)
+        if (!TryParseReservationId(obj.Order?.MerchantOrderId, out var reservationId))
         {
-            await reservationService.ConfirmPaymentAsync(
-                int.Parse(reservationId!),
-                new ConfirmPaymentDto
+            logger.LogError("Bad MerchantOrderId: {Id}", obj.Order?.MerchantOrderId);
+            return Ok(); // نرد 200 عشان Paymob مايعيدش الطلب للأبد
+        }
+
+        try
+        {
+            if (obj.Success)
+                await reservationService.ConfirmPaymentAsync(reservationId, new ConfirmPaymentDto
                 {
-                    TransactionId = payload.Obj.Id.ToString(),
-                    AmountPaid = payload.Obj.AmountCents / 100m,
-                    PaymentMethod = payload.Obj.SourceData?.Type,
-                    GatewayReference = payload.Obj.Order?.Id.ToString()
+                    TransactionId = obj.Id.ToString(),
+                    AmountPaid = obj.AmountCents / 100m,
+                    PaymentMethod = obj.SourceData?.Type,
+                    GatewayReference = obj.Order?.Id.ToString()
                 });
+            else
+                await reservationService.FailPaymentAsync(reservationId, "Payment declined by gateway");
         }
-        else
+        catch (BusinessException ex)
         {
-            await reservationService.FailPaymentAsync(int.Parse(reservationId!), "Payment declined by gateway");
+            logger.LogWarning(ex, "Webhook business error for reservation {Id}", reservationId);
         }
-
-        // 3. Gateways expect a 200 quickly, or they'll retry the webhook
         return Ok();
+    }
+
+    private static bool TryParseReservationId(string? merchantOrderId, out int id)
+    {
+        id = 0;
+        var parts = merchantOrderId?.Split('-');
+        return parts is { Length: 3 } && parts[0] == "RES" && int.TryParse(parts[1], out id);
     }
 }

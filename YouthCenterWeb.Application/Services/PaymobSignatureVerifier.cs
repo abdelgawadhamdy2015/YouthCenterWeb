@@ -7,30 +7,45 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services;
 
 public class PaymobSignatureVerifier(IConfiguration config) : IPaymentSignatureVerifier
 {
-    public bool IsValid(PaymobWebhookDto payload)
+    public bool IsValid(PaymobWebhookDto payload, string? hmac)
     {
-        var hmacSecret = config["Paymob:HmacSecret"]!; // from appsettings / secret manager, never hardcoded
+        var o = payload.Obj;
+        if (o is null || string.IsNullOrEmpty(hmac)) return false;
 
-        // Paymob concatenates specific fields in a FIXED order — check their current docs for the exact list,
-        // this is illustrative of the pattern:
+        var secret = config["Paymob:HmacSecret"];
+        if (string.IsNullOrWhiteSpace(secret)) return false;
+
+        static string B(bool v) => v ? "true" : "false";
+
+        // الترتيب الرسمي من Paymob (أبجدي)
         var concatenated = string.Concat(
-            payload.Obj?.AmountCents,
-            payload.Obj?.CreatedAt,
-            payload.Obj?.Currency,
-            payload.Obj?.ErrorOccured,
-            payload.Obj?.Id,
-            payload.Obj?.IntegrationId,
-            payload.Obj?.Success,
-            payload.Obj?.Order?.Id
-        // ...etc per Paymob's documented field order
-        );
+            o.AmountCents,
+            o.CreatedAt,
+            o.Currency,
+            B(o.ErrorOccured),
+            B(o.HasParentTransaction),
+            o.Id,
+            o.IntegrationId,
+            B(o.Is3dSecure),
+            B(o.IsAuth),
+            B(o.IsCapture),
+            B(o.IsRefunded),
+            B(o.IsStandalonePayment),
+            B(o.IsVoided),
+            o.Order?.Id,
+            o.Owner,
+            B(o.Pending),
+            o.SourceData?.Pan,
+            o.SourceData?.SubType,
+            o.SourceData?.Type,
+            B(o.Success));
 
-        using var hmac = new HMACSHA512(Encoding.UTF8.GetBytes(hmacSecret));
-        var computedHash = Convert.ToHexString(
-            hmac.ComputeHash(Encoding.UTF8.GetBytes(concatenated))).ToLower();
+        using var h = new HMACSHA512(Encoding.UTF8.GetBytes(secret));
+        var computed = Convert.ToHexString(h.ComputeHash(Encoding.UTF8.GetBytes(concatenated))).ToLowerInvariant();
 
         return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(computedHash),
-            Encoding.UTF8.GetBytes(payload.Hmac ?? ""));
+            Encoding.UTF8.GetBytes(computed),
+            Encoding.UTF8.GetBytes(hmac.ToLowerInvariant()));
     }
+
 }

@@ -149,6 +149,6 @@ public interface ICupRepo
     Task<int?> GetCupIdByTeamIdAsync(int teamId);
 
     Task<Cup?> GetByIdForUpdateAsync(int cupId);
-
+    Task DeleteTeamAsync(int teamId);
     Task ExecuteInTransactionAsync(Func<Task> operation);
 }
