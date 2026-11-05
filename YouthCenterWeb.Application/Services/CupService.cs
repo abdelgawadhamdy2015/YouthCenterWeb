@@ -546,7 +546,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 var team = new CupTeam
                 {
                     CupId = cupId,
-                    CaptainUserId = captainUserId ?? cup.CreatedByAdminId,
+                    CaptainUserId = captainUserId,
                     TeamName = teamName.Trim(),
                     Status = CupTeamStatus.Pending,
                     RegisteredAt = DateTime.UtcNow
@@ -641,13 +641,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
             });
 
-            // لا نرسل أي إشعار قبل نجاح Commit.
-            await notificationService.SendToUserAsync(
-                userId: acceptedTeam!.CaptainUserId,
-                title: updatedCup!.NameEn,
-                body: $"Your team's request to join the \"{updatedCup.NameEn}\" tournament has been approved. Good luck!",
-                type: "cup",
-                targetId: updatedCup.Id);
+            if (acceptedTeam?.CaptainUserId != null) await notificationService.SendToUserAsync(
+                 userId: acceptedTeam?.CaptainUserId ?? 0,
+                 title: updatedCup!.NameEn,
+                 body: $"Your team's request to join the \"{updatedCup.NameEn}\" tournament has been approved. Good luck!",
+                 type: "cup",
+                 targetId: updatedCup.Id);
 
             if (cupCompleted)
             {
@@ -701,12 +700,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 rejectedTeam = team;
             });
 
-            await notificationService.SendToUserAsync(
-                userId: rejectedTeam!.CaptainUserId,
-                title: cupForNotification!.NameEn,
-                body: $"Your team's request to join the \"{cupForNotification.NameEn}\" tournament has been declined.",
-                type: "cup",
-                targetId: cupForNotification.Id);
+            if (rejectedTeam?.CaptainUserId != null) await notificationService.SendToUserAsync(
+                     userId: rejectedTeam?.CaptainUserId ?? 0,
+                     title: cupForNotification!.NameEn,
+                     body: $"Your team's request to join the \"{cupForNotification.NameEn}\" tournament has been declined.",
+                     type: "cup",
+                     targetId: cupForNotification.Id);
         }
         #endregion
 
