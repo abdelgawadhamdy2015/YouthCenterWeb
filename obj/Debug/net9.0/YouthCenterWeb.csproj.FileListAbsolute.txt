@@ -213,3 +213,9 @@
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net9.0/YouthCenterWeb.pdb
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net9.0/YouthCenterWeb.genruntimeconfig.cache
 /Users/taif/Desktop/ttech/web/YouthCenterWeb/obj/Debug/net9.0/ref/YouthCenterWeb.dll
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/web.config
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/appsettings.Development.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/appsettings.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/YouthCenterWeb.deps.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/YouthCenterWeb.runtimeconfig.json
+/Users/taif/Desktop/ttech/web/YouthCenterWeb/bin/Debug/net9.0/publish/YouthCenterWeb.staticwebassets.endpoints.json
