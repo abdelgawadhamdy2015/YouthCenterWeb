@@ -232,31 +232,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             cup.Status = CupStatus.Draft;
             cup.CurrentTeamCount = 0;
             cup.CreatedAt = DateTime.UtcNow;
-            ValidateCupStructure(
-                dto.Format,
-                dto.MaxTeams,
-                dto.GroupSize,
-                dto.TeamsAdvancingPerGroup);
 
-            if (dto.RegistrationDeadline <= DateTime.UtcNow)
-                throw new BusinessException(
-                    messageAr: "الموعد النهائي للتسجيل يجب أن يكون في المستقبل.",
-                    messageEn: "Registration deadline must be in the future.");
-
-            if (dto.StartDate <= DateTime.UtcNow)
-                throw new BusinessException(
-                    messageAr: "تاريخ بداية البطولة يجب أن يكون في المستقبل.",
-                    messageEn: "Cup start date must be in the future.");
-
-            if (dto.StartDate <= dto.RegistrationDeadline)
-                throw new BusinessException(
-                    messageAr: "تاريخ بداية البطولة يجب أن يكون بعد الموعد النهائي للتسجيل.",
-                    messageEn: "Start date must be after the registration deadline.");
-
-            if (dto.EntryFee < 0)
-                throw new BusinessException(
-                    messageAr: "رسوم الاشتراك لا يمكن أن تكون سالبة.",
-                    messageEn: "Entry fee cannot be negative.");
             ValidateCupStructure(
         dto.Format,
         dto.MaxTeams,

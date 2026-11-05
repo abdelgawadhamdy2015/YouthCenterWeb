@@ -299,7 +299,8 @@ namespace YouthCenterWeb.Migrations
                     b.HasIndex("GroupId");
 
                     b.HasIndex("CupId", "CaptainUserId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[Status] <> N'Rejected'");
 
                     b.ToTable("CupTeams", (string)null);
                 });

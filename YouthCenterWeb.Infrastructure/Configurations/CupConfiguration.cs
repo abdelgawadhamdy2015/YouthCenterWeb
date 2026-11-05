@@ -144,8 +144,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
             builder.Property(t => t.GoalsAgainst).HasDefaultValue(0);
 
             // Prevent duplicate requests: one active registration per cup per captain
-            builder.HasIndex(t => new { t.CupId, t.CaptainUserId }).IsUnique();
-
+            builder.HasIndex(t => new { t.CupId, t.CaptainUserId })
+                .IsUnique()
+                .HasFilter("[Status] <> N'Rejected'");
             builder.HasOne(t => t.CaptainUser)
                 .WithMany()
                 .HasForeignKey(t => t.CaptainUserId)
