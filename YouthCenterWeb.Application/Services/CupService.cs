@@ -192,8 +192,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             };
         }
 
-        public async Task<IEnumerable<CupTeamDto>> GetPendingRequestsAsync(int cupId)
+        public async Task<IEnumerable<CupTeamDto>> GetPendingRequestsAsync(int cupId, UserRole role, int centerId)
         {
+            var cup = await _cupRepo.GetByIdAsync(cupId)
+       ?? throw new NotFoundException("Cup", cupId);
+            await RequireAdminOfCup(cup, role, centerId);
             var teams = await _cupRepo.GetPendingTeamsByCupAsync(cupId);
             return _mapper.Map<IEnumerable<CupTeamDto>>(teams);
         }
@@ -509,6 +512,65 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         }
         #endregion
 
+
+        #region  Add Teams by admin 
+        public async Task<CupTeamDto> AddTeamByAdminAsync(
+    int cupId, string teamName, int? captainUserId,
+    UserRole callerRole, int callerYouthCenterId)
+        {
+            CupTeam? created = null;
+            Cup? updatedCup = null;
+            bool filled = false;
+
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على البطولة.",
+                        messageEn: "Cup not found.");
+
+                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
+
+                if (cup.Status != CupStatus.RegistrationOpen && cup.Status != CupStatus.Draft)
+                    throw new BusinessException(
+                        "لا يمكن إضافة فرق في هذه المرحلة.",
+                        "Teams can only be added during Draft or RegistrationOpen.");
+
+                if (cup.CurrentTeamCount >= cup.MaxTeams)
+                    throw new BusinessException("البطولة ممتلئة.", "The cup is full.");
+
+                if (string.IsNullOrWhiteSpace(teamName) || teamName.Length > 100)
+                    throw new BusinessException("اسم الفريق غير صالح.", "Invalid team name.");
+
+                // الكابتن اختياري: لو مش محدد نستخدم الأدمن نفسه كمالك مؤقت
+                var team = new CupTeam
+                {
+                    CupId = cupId,
+                    CaptainUserId = captainUserId,
+                    TeamName = teamName.Trim(),
+                    Status = CupTeamStatus.Pending,
+                    RegisteredAt = DateTime.UtcNow
+                };
+                created = await _cupRepo.CreateTeamAsync(team);
+
+                updatedCup = await _cupRepo.AcceptTeamAndIncrementCountAsync(created.Id);
+
+                if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
+                {
+                    await GenerateGroupsAsync(updatedCup.Id);
+                    await GenerateGroupMatchesAsync(updatedCup.Id);
+                    updatedCup.Status = CupStatus.GroupStage;
+                    await _cupRepo.UpdateAsync(updatedCup);
+                    filled = true;
+                }
+            });
+
+            if (filled) await NotifyCupStatusChangeAsync(updatedCup!);
+            return _mapper.Map<CupTeamDto>(created);
+        }
+        #endregion
+
+
         #region Accept And REject
         public async Task AcceptJoinRequestAsync(
        int teamId,
@@ -579,13 +641,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
             });
 
-            // لا نرسل أي إشعار قبل نجاح Commit.
-            await notificationService.SendToUserAsync(
-                userId: acceptedTeam!.CaptainUserId,
-                title: updatedCup!.NameEn,
-                body: $"Your team's request to join the \"{updatedCup.NameEn}\" tournament has been approved. Good luck!",
-                type: "cup",
-                targetId: updatedCup.Id);
+            if (acceptedTeam?.CaptainUserId != null) await notificationService.SendToUserAsync(
+                 userId: acceptedTeam?.CaptainUserId ?? 0,
+                 title: updatedCup!.NameEn,
+                 body: $"Your team's request to join the \"{updatedCup.NameEn}\" tournament has been approved. Good luck!",
+                 type: "cup",
+                 targetId: updatedCup.Id);
 
             if (cupCompleted)
             {
@@ -639,12 +700,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 rejectedTeam = team;
             });
 
-            await notificationService.SendToUserAsync(
-                userId: rejectedTeam!.CaptainUserId,
-                title: cupForNotification!.NameEn,
-                body: $"Your team's request to join the \"{cupForNotification.NameEn}\" tournament has been declined.",
-                type: "cup",
-                targetId: cupForNotification.Id);
+            if (rejectedTeam?.CaptainUserId != null) await notificationService.SendToUserAsync(
+                     userId: rejectedTeam?.CaptainUserId ?? 0,
+                     title: cupForNotification!.NameEn,
+                     body: $"Your team's request to join the \"{cupForNotification.NameEn}\" tournament has been declined.",
+                     type: "cup",
+                     targetId: cupForNotification.Id);
         }
         #endregion
 
@@ -1085,6 +1146,11 @@ int teamsAdvancingPerGroup)
                 throw new BusinessException(
                     messageAr: $"عدد المتأهلين للأدوار الإقصائية ({knockoutTeams}) يجب أن يكون قوة للعدد 2.",
                     messageEn: $"The number of knockout teams ({knockoutTeams}) must be a power of 2.");
+        }
+
+        public Task CancelMyJoinRequestAsync(int cupId, int userId)
+        {
+            throw new NotImplementedException();
         }
     }
 

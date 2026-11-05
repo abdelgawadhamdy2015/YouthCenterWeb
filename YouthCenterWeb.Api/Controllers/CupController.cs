@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using YouthCenterWeb.Application.Common.Constants;
 using YouthCenterWeb.Models;
 using YouthCenterWeb.YouthCenterWeb.Api.Controllers;
@@ -93,6 +94,21 @@ public class CupsController(ICupService cupService) : ApiControllerBase
 
     #endregion
 
+    #region AddTeam for admin
+
+    public record AddTeamDto(string TeamName, int? CaptainUserId);
+
+    [Authorize(policy: Policies.RequireAdmin)]
+    [HttpPost("{cupId:int}/teams")]
+    public async Task<IActionResult> AddTeam(int cupId, [FromBody] AddTeamDto dto)
+    {
+        var (_, role, centerId) = GetAdminContext();
+        var data = await _cupService.AddTeamByAdminAsync(
+            cupId, dto.TeamName, dto.CaptainUserId, role, centerId);
+        return ApiResult(data);
+    }
+    #endregion
+
     #region Join Requests
 
     [Authorize]
@@ -110,7 +126,9 @@ public class CupsController(ICupService cupService) : ApiControllerBase
     [HttpGet("{cupId:int}/requests")]
     public async Task<IActionResult> GetPendingRequests(int cupId)
     {
-        var data = await _cupService.GetPendingRequestsAsync(cupId);
+        var role = GetCurrentUserRole();
+        var centerId = GetCurrentYouthCenter();
+        var data = await _cupService.GetPendingRequestsAsync(cupId, role, centerId ?? 0);
         return ApiResult(data);
     }
 

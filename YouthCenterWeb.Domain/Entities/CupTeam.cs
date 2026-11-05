@@ -17,7 +17,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public int CupId { get; set; }
         public Cup Cup { get; set; } = null!;
 
-        public int CaptainUserId { get; set; }
+        public int? CaptainUserId { get; set; }
         public User CaptainUser { get; set; } = null!;
 
         /// <summary>

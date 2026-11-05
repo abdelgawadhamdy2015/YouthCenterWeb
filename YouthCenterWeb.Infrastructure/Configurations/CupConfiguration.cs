@@ -145,12 +145,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
 
             // Prevent duplicate requests: one active registration per cup per captain
             builder.HasIndex(t => new { t.CupId, t.CaptainUserId })
-                .IsUnique()
-                .HasFilter("[Status] <> N'Rejected'");
+     .IsUnique()
+     .HasFilter("[CaptainUserId] IS NOT NULL AND [Status] <> N'Rejected'");
             builder.HasOne(t => t.CaptainUser)
-                .WithMany()
-                .HasForeignKey(t => t.CaptainUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+     .WithMany()
+     .HasForeignKey(t => t.CaptainUserId)
+     .IsRequired(false)
+     .OnDelete(DeleteBehavior.Restrict);
 
             // Group relationship is configured in CupGroupConfiguration
             // to avoid duplicate HasMany/WithOne conflicts

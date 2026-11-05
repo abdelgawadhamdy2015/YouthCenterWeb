@@ -236,7 +236,7 @@ namespace YouthCenterWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("CaptainUserId")
+                    b.Property<int?>("CaptainUserId")
                         .HasColumnType("int");
 
                     b.Property<int>("CupId")
@@ -300,7 +300,7 @@ namespace YouthCenterWeb.Migrations
 
                     b.HasIndex("CupId", "CaptainUserId")
                         .IsUnique()
-                        .HasFilter("[Status] <> N'Rejected'");
+                        .HasFilter("[CaptainUserId] IS NOT NULL AND [Status] <> N'Rejected'");
 
                     b.ToTable("CupTeams", (string)null);
                 });
@@ -760,8 +760,7 @@ namespace YouthCenterWeb.Migrations
                     b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.User", "CaptainUser")
                         .WithMany()
                         .HasForeignKey("CaptainUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("YouthCenterWeb.YouthCenterWeb.Domain.Entities.Cup", "Cup")
                         .WithMany("Teams")
