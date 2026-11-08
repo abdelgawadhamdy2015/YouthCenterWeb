@@ -20,7 +20,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
         public int TeamsAdvancingPerGroup { get; set; } = 2;
 
         public double? EntryFee { get; set; }
-
+        public CupScheduleMode ScheduleMode { get; set; } = CupScheduleMode.Automatic;
+        public TimeOnly? DailyStartTime { get; set; }
+        public TimeOnly? DailyEndTime { get; set; }
+        public int MatchDurationMinutes { get; set; } = 45;
+        public int BreakMinutes { get; set; } = 15;
         public DateTime RegistrationDeadline { get; set; }
 
         public DateTime StartDate { get; set; }

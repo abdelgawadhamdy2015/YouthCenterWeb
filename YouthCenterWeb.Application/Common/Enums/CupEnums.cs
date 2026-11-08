@@ -45,4 +45,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Common.Enums
         ThirdPlace = 6,
         FinalMatch = 7
     }
+    public enum CupScheduleMode
+    {
+        Manual = 1,
+        Automatic = 2
+    }
 }

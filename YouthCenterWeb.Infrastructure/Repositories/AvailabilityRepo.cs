@@ -38,22 +38,20 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
 
             // ── 2) تعارض مع مباراة مجدولة على نفس النشاط ──────────────────────
             var matches = await _context.CupMatches
-                .Where(m =>
-                    m.Cup.YouthCenterActivityId == youthCenterActivityId &&
-                    m.Id != excludeMatchId &&
-                    m.ScheduledAt != null &&
-                    m.ScheduledAt.Value.Date == targetDate &&
-                    m.Status != CupMatchStatus.Completed) // مباراة منتهية مش هتتعاد جدولتها، لكن ساعتها لسه محجوزة تاريخياً — لو عايز تستثنيها برضو شيل الشرط ده
-                .Select(m => m.ScheduledAt!.Value)
-                .ToListAsync();
+     .Where(m => m.Cup.YouthCenterActivityId == youthCenterActivityId
+              && m.Id != excludeMatchId
+              && m.ScheduledAt != null
+              && m.ScheduledAt.Value.Date == targetDate
+              && m.Status != CupMatchStatus.Completed)
+     .Select(m => new { m.ScheduledAt, m.Cup.MatchDurationMinutes })
+     .ToListAsync();
 
-            foreach (var scheduledAt in matches)
+            foreach (var m in matches)
             {
-                var matchStart = TimeOnly.FromDateTime(scheduledAt);
-                var matchEnd = matchStart.Add(MatchDuration);
-
-                if (matchStart < end && matchEnd > start)
-                    return true;
+                var ms = TimeOnly.FromDateTime(m.ScheduledAt!.Value);
+                var me = ms.AddMinutes(m.MatchDurationMinutes);
+                if (me <= ms) me = TimeOnly.MaxValue;
+                if (ms < end && me > start) return true;
             }
 
             return false;

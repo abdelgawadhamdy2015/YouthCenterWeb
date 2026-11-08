@@ -237,6 +237,15 @@ public class CupsController(ICupService cupService) : ApiControllerBase
         return Ok(ApiResultRaw("تم حذف الفريق.", "Team removed."));
     }
 
+    [Authorize(policy: Policies.RequireAdmin)]
+    [HttpPost("{cupId:int}/schedule/regenerate")]
+    public async Task<IActionResult> RegenerateSchedule(int cupId, [FromBody] RegenerateScheduleDto dto)
+    {
+        var (_, role, centerId) = GetAdminContext();
+        var n = await _cupService.RegenerateScheduleAsync(cupId, dto.OverwriteManual, role, centerId);
+        return Ok(ApiResultRaw($"تم جدولة {n} مباراة.", $"{n} matches scheduled."));
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────────────

@@ -55,7 +55,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public DateTime StartDate { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public CupScheduleMode ScheduleMode { get; set; } = CupScheduleMode.Manual;
 
+        /// بداية وقت اللعب اليومي (مثلاً 19:00)
+        public TimeOnly? DailyStartTime { get; set; }
+        /// نهاية وقت اللعب اليومي (مثلاً 22:00)
+        public TimeOnly? DailyEndTime { get; set; }
+
+        public int MatchDurationMinutes { get; set; } = 45;
+        public int BreakMinutes { get; set; } = 15;
         // ── Navigation ──────────────────────────────────────────────────────
 
         public ICollection<CupTeam> Teams { get; set; } = new List<CupTeam>();

@@ -109,7 +109,8 @@ public interface ICupService
         Task<CupTeamDto> AddTeamByAdminAsync(
 int cupId, string teamName, int? captainUserId,
 UserRole callerRole, int callerYouthCenterId);
-
+        Task<int> RegenerateScheduleAsync(
+        int cupId, bool overwriteManual, UserRole role, int centerId);
         Task CancelMyJoinRequestAsync(int cupId, int userId);
         Task StartCupAsync(int cupId, UserRole role, int callerYouthCenterId);
         Task RemoveTeamAsync(int cupId, int teamId, UserRole role, int callerYouthCenterId);

@@ -1,6 +1,7 @@
 using AutoMapper;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.ICupScheduler;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
@@ -15,6 +16,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         INotificationService notificationService,
         IYouthCenterActivityRepo youthCenterActivityRepo,
         IAvailabilityRepo availabilityRepo,
+        ICupScheduler scheduler,
         IMapper mapper) : ICupService
     {
         private readonly ICupRepo _cupRepo = cupRepo;
@@ -351,6 +353,19 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     throw new BusinessException(
                         messageAr: "لا يمكن تغيير إعدادات نظام البطولة أو عدد الفرق أو حجم المجموعات بعد بدء التسجيل.",
                         messageEn: "Cup format, team count and group settings cannot be changed after registration starts.");
+            }
+            bool scheduleEditable = cup.Status is CupStatus.Draft
+    or CupStatus.RegistrationOpen or CupStatus.GroupStage;
+
+            if (scheduleEditable)
+            {
+                cup.ScheduleMode = dto.ScheduleMode ?? cup.ScheduleMode;
+                cup.DailyStartTime = dto.DailyStartTime ?? cup.DailyStartTime;
+                cup.DailyEndTime = dto.DailyEndTime ?? cup.DailyEndTime;
+                cup.MatchDurationMinutes = dto.MatchDurationMinutes ?? cup.MatchDurationMinutes;
+                cup.BreakMinutes = dto.BreakMinutes ?? cup.BreakMinutes;
+                ValidateSchedule(cup.ScheduleMode, cup.DailyStartTime, cup.DailyEndTime,
+                                 cup.MatchDurationMinutes, cup.BreakMinutes);
             }
             bool datesEditable =
      cup.Status == CupStatus.Draft ||
@@ -861,7 +876,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: "Cannot reschedule a completed match.");
 
             var start = TimeOnly.FromDateTime(scheduledAt);
-            var end = start.Add(MatchDuration);
+            var end = start.AddMinutes(cup.MatchDurationMinutes);
+            if (end <= start)   // عدّى منتصف الليل
+                throw new BusinessException("المباراة لا يمكن أن تتخطى منتصف الليل.", "A match cannot run past midnight.");
 
             var conflict = await _availabilityRepo.HasConflictAsync(
                 cup.YouthCenterActivityId,
@@ -876,13 +893,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: "This time slot is already reserved or has another match scheduled on this activity.");
 
             match.ScheduledAt = scheduledAt;
-            if (match.Status == CupMatchStatus.Pending)
-                match.Status = CupMatchStatus.Scheduled;
+            match.IsManuallyScheduled = true;
+            match.Status = CupMatchStatus.Scheduled;
             await _cupRepo.UpdateMatchAsync(match);
 
-            // Scheduling a single match is a per-match detail, not a cup-wide
-            // event, so it stays without a topic broadcast. If you want to notify
-            // both teams' captains here, that's a SendToUserAsync x2, not a topic.
+
 
             return _mapper.Map<CupMatchDto>(match);
         }
@@ -994,6 +1009,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             CreateKnockoutBracket(cupId, groups.Count, cup.TeamsAdvancingPerGroup, matches);
             await _cupRepo.CreateMatchesAsync(matches);
+            if (cup.ScheduleMode == CupScheduleMode.Automatic)
+                await scheduler.ScheduleAsync(cup);
         }
 
         private static void CreateKnockoutBracket(
@@ -1239,6 +1256,49 @@ int teamsAdvancingPerGroup)
                     title: cupRef.NameEn,
                     body: $"Your team \"{removed.TeamName}\" was removed from \"{cupRef.NameEn}\".",
                     type: "cup", targetId: cupRef.Id);
+        }
+
+        private static void ValidateSchedule(
+    CupScheduleMode mode, TimeOnly? start, TimeOnly? end, int duration, int brk)
+        {
+            if (duration < 10 || duration > 240)
+                throw new BusinessException("مدة المباراة غير صالحة.", "Match duration must be between 10 and 240 minutes.");
+            if (brk < 0 || brk > 120)
+                throw new BusinessException("مدة الاستراحة غير صالحة.", "Break must be between 0 and 120 minutes.");
+
+            if (mode != CupScheduleMode.Automatic) return;
+
+            if (start is null || end is null)
+                throw new BusinessException("حدد وقت البداية والنهاية للجدولة التلقائية.", "Start and end times are required for automatic scheduling.");
+            if (end <= start)
+                throw new BusinessException("وقت النهاية يجب أن يكون بعد وقت البداية.", "End time must be after start time.");
+            if ((end.Value - start.Value).TotalMinutes < duration)
+                throw new BusinessException("الفترة اليومية أقصر من مدة المباراة.", "The daily window is shorter than a single match.");
+        }
+
+        public async Task<int> RegenerateScheduleAsync(
+    int cupId, bool overwriteManual, UserRole role, int centerId)
+        {
+            int count = 0;
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException("Cup", cupId);
+                await RequireAdminOfCup(cup, role, centerId);
+
+                if (cup.Status is not (CupStatus.GroupStage or CupStatus.KnockoutStage))
+                    throw new BusinessException(
+                        "الجدول بيتولد بعد بدء البطولة فقط.",
+                        "The schedule can only be generated after the cup has started.");
+
+                cup.ScheduleMode = CupScheduleMode.Automatic;   // يسمح بالتحويل من Manual
+                ValidateSchedule(cup.ScheduleMode, cup.DailyStartTime, cup.DailyEndTime,
+                                 cup.MatchDurationMinutes, cup.BreakMinutes);
+                await _cupRepo.UpdateAsync(cup);
+
+                count = await scheduler.ScheduleAsync(cup, overwriteManual);
+            });
+            return count;
         }
     }
 

@@ -222,25 +222,20 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
         {
             var targetDate = dto.Date.Date;
 
-            var matchHours = await _context.CupMatches
-                .Where(m =>
-                    m.Cup.YouthCenterActivityId == dto.YouthCenterActivityId &&
-                    m.ScheduledAt != null &&
-                    m.ScheduledAt.Value.Date == targetDate &&
-                    m.Status != CupMatchStatus.Completed)
-                .Select(m => m.ScheduledAt!.Value)
-                .ToListAsync();
+            var matchSlots = await _context.CupMatches
+    .Where(m => m.Cup.YouthCenterActivityId == dto.YouthCenterActivityId
+             && m.ScheduledAt != null
+             && m.ScheduledAt.Value.Date == targetDate
+             && m.Status != CupMatchStatus.Completed)
+    .Select(m => new { m.ScheduledAt, m.Cup.MatchDurationMinutes })
+    .ToListAsync();
 
-            foreach (var scheduledAt in matchHours)
+            foreach (var m in matchSlots)
             {
-                var matchStart = scheduledAt.Hour;
-                var matchEnd = matchStart + (int)MatchDuration.TotalHours;
-
-                foreach (var hour in Enumerable.Range(matchStart, matchEnd - matchStart)
-                                               .Select(h => h % 24))
-                {
-                    hourCounts[hour] = hourCounts.GetValueOrDefault(hour) + 1;
-                }
+                var s = m.ScheduledAt!.Value;
+                var e = s.AddMinutes(m.MatchDurationMinutes);
+                for (var h = new DateTime(s.Year, s.Month, s.Day, s.Hour, 0, 0); h < e; h = h.AddHours(1))
+                    hourCounts[h.Hour] = hourCounts.GetValueOrDefault(h.Hour) + 1;
             }
         }
 

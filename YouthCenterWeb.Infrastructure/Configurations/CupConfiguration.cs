@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
@@ -54,7 +55,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
                 .WithMany()
                 .HasForeignKey(c => c.YouthCenterActivityId)
                 .OnDelete(DeleteBehavior.Restrict);
+            builder.Property(c => c.ScheduleMode)
+                          .IsRequired()
+                          .HasConversion<string>()
+                          .HasDefaultValue(CupScheduleMode.Manual);   // الكؤوس القديمة تفضل Manual
 
+            builder.Property(c => c.DailyStartTime).HasColumnType("time");
+            builder.Property(c => c.DailyEndTime).HasColumnType("time");
+            builder.Property(c => c.MatchDurationMinutes).IsRequired().HasDefaultValue(45);
+            builder.Property(c => c.BreakMinutes).IsRequired().HasDefaultValue(15);
 
             builder.HasOne(c => c.CreatedByAdmin)
                 .WithMany()
@@ -218,6 +227,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
                 .HasForeignKey(m => m.WinnerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+
+            // CupMatchConfiguration
+            builder.Property(m => m.IsManuallyScheduled).IsRequired().HasDefaultValue(false);
             // Group is configured in CupGroupConfiguration
         }
     }
