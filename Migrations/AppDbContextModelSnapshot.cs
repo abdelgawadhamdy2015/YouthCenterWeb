@@ -55,6 +55,11 @@ namespace YouthCenterWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("BreakBetweenMatchesMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("BreakMinutes")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -95,6 +100,11 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(4);
 
+                    b.Property<int>("HalftimeMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(15);
+
                     b.Property<int>("MatchDurationMinutes")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -112,8 +122,18 @@ namespace YouthCenterWeb.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("PlayDaysMask")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(127);
+
                     b.Property<DateTime>("RegistrationDeadline")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("RestDaysBetweenRounds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("ScheduleMode")
                         .IsRequired()

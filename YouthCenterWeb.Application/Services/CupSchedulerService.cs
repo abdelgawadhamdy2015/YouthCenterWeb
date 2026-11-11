@@ -13,11 +13,16 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         private const int MaxDaysAhead = 180;
 
         private static readonly TimeZoneInfo CairoTz = ResolveCairoTz();
+
         private static TimeZoneInfo ResolveCairoTz()
         {
             try { return TimeZoneInfo.FindSystemTimeZoneById("Africa/Cairo"); }
             catch { return TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"); }
         }
+
+        /// PlayDaysMask: Sunday = bit0 ... Saturday = bit6
+        public static bool IsPlayDay(Cup cup, DateTime day) =>
+            ((cup.PlayDaysMask >> (int)day.DayOfWeek) & 1) == 1;
 
         public async Task<int> ScheduleAsync(Cup cup, bool overwriteManual = false)
         {
@@ -33,69 +38,107 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                             (overwriteManual || !m.IsManuallyScheduled))
                 .ToList();
 
+            if (toSchedule.Count == 0) return 0;
+
             // فك حجز المواعيد القديمة أولاً، وإلا المباريات هتتعارض مع نفسها
-            foreach (var m in toSchedule) m.ScheduledAt = null;
-            await cupRepo.UpdateMatchesAsync(toSchedule);
+            var stale = toSchedule.Where(m => m.ScheduledAt != null).ToList();
+            if (stale.Count > 0)
+            {
+                foreach (var m in stale) m.ScheduledAt = null;
+                await cupRepo.UpdateMatchesAsync(stale);
+            }
 
             var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CairoTz);
             var cursor = cup.StartDate.Date > now.Date ? cup.StartDate.Date : now;
 
-            // 1) مباريات المجموعات بترتيب يمنع تلعب نفس الفرق ورا بعض
+            // الخطة بتتبني في الذاكرة وتتطبق مرة واحدة في الآخر،
+            // فلو فشلت في النص ما يتحفظش جدول ناقص
+            var plan = new List<(CupMatch Match, DateTime At)>();
+
+            async Task Place(CupMatch m)
+            {
+                var at = await FindSlotAsync(cup, cursor, now, plan);
+                plan.Add((m, at));
+                cursor = at.AddMinutes(
+                    cup.MatchDurationMinutes +
+                    cup.HalftimeMinutes +
+                    cup.BreakBetweenMatchesMinutes);
+            }
+
+            // 1) دور المجموعات
             var groupOrdered = OrderGroupMatches(
                 toSchedule.Where(m => m.Stage == CupMatchStage.GroupStage).ToList());
 
             foreach (var m in groupOrdered)
-                cursor = await Assign(cup, m, cursor, now);
+                await Place(m);
 
-            // 2) الإقصائيات: كل دور يبدأ في يوم جديد
+            // 2) الإقصائيات: كل دور في يوم جديد + أيام الراحة
             int? lastBucket = null;
             foreach (var m in toSchedule
                          .Where(m => m.Stage != CupMatchStage.GroupStage)
-                         .OrderBy(m => m.Stage).ThenBy(m => m.MatchNumber))
+                         .OrderBy(m => m.Stage)
+                         .ThenBy(m => m.MatchNumber))
             {
+                // المركز الثالث والنهائي في نفس اليوم
                 var bucket = m.Stage == CupMatchStage.ThirdPlace
-                    ? (int)CupMatchStage.FinalMatch   // مركز تالت + نهائي نفس اليوم
+                    ? (int)CupMatchStage.FinalMatch
                     : (int)m.Stage;
 
-                if (lastBucket != null && bucket != lastBucket)
-                    cursor = cursor.Date.AddDays(1);
-                lastBucket = bucket;
+                bool newRound = lastBucket != null
+                    ? bucket != lastBucket
+                    : groupOrdered.Count > 0;
 
-                cursor = await Assign(cup, m, cursor, now);
+                if (newRound)
+                    cursor = cursor.Date.AddDays(1 + cup.RestDaysBetweenRounds);
+
+                lastBucket = bucket;
+                await Place(m);
             }
 
-            await cupRepo.UpdateMatchesAsync(toSchedule);
-            return toSchedule.Count;
+            foreach (var (m, at) in plan)
+            {
+                m.ScheduledAt = at;
+                m.Status = CupMatchStatus.Scheduled;
+                m.IsManuallyScheduled = false;
+            }
+
+            await cupRepo.UpdateMatchesAsync(plan.Select(p => p.Match).ToList());
+            return plan.Count;
         }
 
-        private async Task<DateTime> Assign(Cup cup, CupMatch m, DateTime cursor, DateTime now)
+        // ─────────────────────────────────────────────────────────────────────
+        // إيجاد أول slot فاضي بعد الـ cursor
+        // ─────────────────────────────────────────────────────────────────────
+        private async Task<DateTime> FindSlotAsync(
+            Cup cup,
+            DateTime cursor,
+            DateTime now,
+            List<(CupMatch Match, DateTime At)> plan)
         {
-            var start = await FindSlotAsync(cup, cursor, now);
-            m.ScheduledAt = start;
-            m.Status = CupMatchStatus.Scheduled;
-            m.IsManuallyScheduled = false;
-            // المباراة اللي بعدها تبدأ بعد (المدة + الاستراحة)
-            return start.AddMinutes(cup.MatchDurationMinutes + cup.BreakMinutes);
-        }
-
-        private async Task<DateTime> FindSlotAsync(Cup cup, DateTime cursor, DateTime now)
-        {
-            var duration = TimeSpan.FromMinutes(cup.MatchDurationMinutes);
-            var step = TimeSpan.FromMinutes(cup.MatchDurationMinutes + cup.BreakMinutes);
+            var slot = TimeSpan.FromMinutes(cup.MatchDurationMinutes + cup.HalftimeMinutes);
+            var step = slot + TimeSpan.FromMinutes(cup.BreakBetweenMatchesMinutes);
             var dayStart = cup.DailyStartTime!.Value.ToTimeSpan();
             var dayEnd = cup.DailyEndTime!.Value.ToTimeSpan();
 
             var day = cursor.Date;
             for (int i = 0; i < MaxDaysAhead; i++, day = day.AddDays(1))
             {
-                for (var s = day + dayStart; s + duration <= day + dayEnd; s += step)
+                if (!IsPlayDay(cup, day)) continue;
+
+                for (var s = day + dayStart; s + slot <= day + dayEnd; s += step)
                 {
                     if (s < cursor || s < now) continue;
 
+                    // تعارض مع مباريات الخطة اللي لسه ما اتحفظتش
+                    // (المباريات دي ما بتظهرش في الـ DB فـ HasConflictAsync مش شايفها)
+                    if (plan.Any(p => p.At < s + slot && p.At + slot > s))
+                        continue;
+
                     var conflict = await availability.HasConflictAsync(
-                        cup.YouthCenterActivityId, day,
+                        cup.YouthCenterActivityId,
+                        day,
                         TimeOnly.FromDateTime(s),
-                        TimeOnly.FromDateTime(s + duration));
+                        TimeOnly.FromDateTime(s + slot));
 
                     if (!conflict) return s;
                 }
@@ -106,13 +149,18 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 "Could not find enough free time slots in the coming days.");
         }
 
-        /// Greedy: اختار مباراة فرقها ما لعبتش في الـ slot اللي قبله،
-        /// ويفضّل مجموعة مختلفة عن اللي قبلها
+        // ─────────────────────────────────────────────────────────────────────
+        // ترتيب مباريات المجموعات: الفريق ما يلعبش مرتين ورا بعض،
+        // ويفضّل تبديل المجموعات
+        // ─────────────────────────────────────────────────────────────────────
         private static List<CupMatch> OrderGroupMatches(List<CupMatch> matches)
         {
             var remaining = matches
-                .OrderBy(m => m.GroupId).ThenBy(m => m.Round).ThenBy(m => m.MatchNumber)
+                .OrderBy(m => m.GroupId)
+                .ThenBy(m => m.Round)
+                .ThenBy(m => m.MatchNumber)
                 .ToList();
+
             var result = new List<CupMatch>(matches.Count);
             var lastTeams = new HashSet<int>();
             int? lastGroup = null;
@@ -130,9 +178,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
                 remaining.Remove(pick);
                 result.Add(pick);
+
                 lastTeams = new HashSet<int> { pick.TeamAId!.Value, pick.TeamBId!.Value };
                 lastGroup = pick.GroupId;
             }
+
             return result;
         }
     }

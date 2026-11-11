@@ -25,6 +25,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
         public TimeOnly? DailyEndTime { get; set; }
         public int MatchDurationMinutes { get; set; } = 45;
         public int BreakMinutes { get; set; } = 15;
+        public int HalftimeMinutes { get; set; } = 15;
+        public int BreakBetweenMatchesMinutes { get; set; } = 0;
+        public int PlayDaysMask { get; set; } = 127;
+        public int RestDaysBetweenRounds { get; set; } = 0;
         public DateTime RegistrationDeadline { get; set; }
 
         public DateTime StartDate { get; set; }

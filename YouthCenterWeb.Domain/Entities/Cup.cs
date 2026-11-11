@@ -64,6 +64,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 
         public int MatchDurationMinutes { get; set; } = 45;
         public int BreakMinutes { get; set; } = 15;
+
+        public int HalftimeMinutes { get; set; } = 15;               // بين الشوطين
+        public int BreakBetweenMatchesMinutes { get; set; } = 0;     // بين مباراتين (اختياري)
+
+        /// Bitmask: Sunday=bit0 ... Saturday=bit6. 127 = كل الأيام
+        public int PlayDaysMask { get; set; } = 127;
+        public int RestDaysBetweenRounds { get; set; } = 0;
+
+
         // ── Navigation ──────────────────────────────────────────────────────
 
         public ICollection<CupTeam> Teams { get; set; } = new List<CupTeam>();

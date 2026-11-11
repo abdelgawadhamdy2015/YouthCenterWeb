@@ -64,7 +64,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
             builder.Property(c => c.DailyEndTime).HasColumnType("time");
             builder.Property(c => c.MatchDurationMinutes).IsRequired().HasDefaultValue(45);
             builder.Property(c => c.BreakMinutes).IsRequired().HasDefaultValue(15);
-
+            builder.Property(c => c.HalftimeMinutes).IsRequired().HasDefaultValue(15);
+            builder.Property(c => c.BreakBetweenMatchesMinutes).IsRequired().HasDefaultValue(0);
+            builder.Property(c => c.PlayDaysMask).IsRequired().HasDefaultValue(127);
+            builder.Property(c => c.RestDaysBetweenRounds).IsRequired().HasDefaultValue(0);
             builder.HasOne(c => c.CreatedByAdmin)
                 .WithMany()
                 .HasForeignKey(c => c.CreatedByAdminId)

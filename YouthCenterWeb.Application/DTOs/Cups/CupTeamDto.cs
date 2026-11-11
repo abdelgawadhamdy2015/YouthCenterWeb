@@ -8,7 +8,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
 
         public int CupId { get; set; }
 
-        public int CaptainUserId { get; set; }
+        public int? CaptainUserId { get; set; }
 
         public string? CaptainName { get; set; }
 

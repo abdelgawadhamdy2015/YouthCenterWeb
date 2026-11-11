@@ -38,18 +38,18 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
 
             // ── 2) تعارض مع مباراة مجدولة على نفس النشاط ──────────────────────
             var matches = await _context.CupMatches
-     .Where(m => m.Cup.YouthCenterActivityId == youthCenterActivityId
-              && m.Id != excludeMatchId
-              && m.ScheduledAt != null
-              && m.ScheduledAt.Value.Date == targetDate
-              && m.Status != CupMatchStatus.Completed)
-     .Select(m => new { m.ScheduledAt, m.Cup.MatchDurationMinutes })
-     .ToListAsync();
+         .Where(m => m.Cup.YouthCenterActivityId == youthCenterActivityId
+                  && m.Id != excludeMatchId
+                  && m.ScheduledAt != null
+                  && m.ScheduledAt.Value.Date == targetDate
+                  && m.Status != CupMatchStatus.Completed)
+         .Select(m => new { m.ScheduledAt, Minutes = m.Cup.MatchDurationMinutes + m.Cup.HalftimeMinutes })
+         .ToListAsync();
 
             foreach (var m in matches)
             {
                 var ms = TimeOnly.FromDateTime(m.ScheduledAt!.Value);
-                var me = ms.AddMinutes(m.MatchDurationMinutes);
+                var me = ms.AddMinutes(m.Minutes);
                 if (me <= ms) me = TimeOnly.MaxValue;
                 if (ms < end && me > start) return true;
             }
