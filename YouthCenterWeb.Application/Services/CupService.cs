@@ -1,6 +1,7 @@
 using AutoMapper;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.ICupScheduler;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
@@ -15,6 +16,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         INotificationService notificationService,
         IYouthCenterActivityRepo youthCenterActivityRepo,
         IAvailabilityRepo availabilityRepo,
+        IUserRepo userRepo,
+        ICupScheduler scheduler,
         IMapper mapper) : ICupService
     {
         private readonly ICupRepo _cupRepo = cupRepo;
@@ -22,7 +25,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         private readonly IAvailabilityRepo _availabilityRepo = availabilityRepo;
         private readonly IMapper _mapper = mapper;
 
-        private static readonly TimeSpan MatchDuration = TimeSpan.FromHours(1);
+        private static readonly TimeZoneInfo CairoTz = ResolveCairoTz();
+
+        private static TimeZoneInfo ResolveCairoTz()
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById("Africa/Cairo"); }
+            catch { return TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"); }
+        }
 
         // ─────────────────────────────────────────────────────────────────────
         // AUTHORIZATION HELPERS
@@ -52,13 +61,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         // NOTIFICATION HELPERS
         // ─────────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Single entry point for every "broadcast to the activity's followers" notification.
-        /// Always keys off cup.YouthCenterActivityId directly — never the navigation
-        /// property, which isn't guaranteed to be loaded.
-        /// </summary>
         private async Task NotifyActivityTopicAsync(
-    Cup cup, string title, string body, string eventName)
+            Cup cup, string title, string body, string eventName)
         {
             var ya = await _activityRepo.GetByIdAsync(cup.YouthCenterActivityId);
             if (ya is null) return;
@@ -73,12 +77,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 data: new Dictionary<string, string> { ["event"] = eventName });
         }
 
-        /// <summary>
-        /// Broadcasts a topic notification for a cup's *current* status, called right
-        /// after any successful status transition — whether triggered explicitly via
-        /// UpdateAsync or automatically (cup fills up, group stage ends, final ends).
-        /// Draft/unrecognized statuses are intentionally silent.
-        /// </summary>
         private async Task NotifyCupStatusChangeAsync(Cup cup)
         {
             var (body, eventName) = cup.Status switch
@@ -106,8 +104,48 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             await NotifyActivityTopicAsync(cup, cup.NameEn, body, eventName!);
         }
 
+        /// بعد بدء دور المجموعات: إشعار الحالة + (لو تلقائي) إشعار الجدول للكباتن
+        private async Task AfterGroupStageStartedAsync(Cup cup)
+        {
+            await NotifyCupStatusChangeAsync(cup);
+            if (cup.ScheduleMode == CupScheduleMode.Automatic)
+                await NotifyScheduleReadyAsync(cup);
+        }
+
+        /// لكل كابتن (لو موجود): ميعاد أول مباراة لفريقه
+        private async Task NotifyScheduleReadyAsync(Cup cup)
+        {
+            var matches = (await _cupRepo.GetMatchesByCupAsync(cup.Id))
+                .Where(m => m.ScheduledAt != null).ToList();
+            if (matches.Count == 0) return;
+
+            var teams = await _cupRepo.GetAcceptedTeamsByCupAsync(cup.Id);
+            foreach (var t in teams.Where(t => t.CaptainUserId != null))
+            {
+                var first = matches
+                    .Where(m => m.TeamAId == t.Id || m.TeamBId == t.Id)
+                    .OrderBy(m => m.ScheduledAt)
+                    .FirstOrDefault();
+
+                var body = first is null
+                    ? $"The match schedule for \"{cup.NameEn}\" is ready."
+                    : $"The schedule for \"{cup.NameEn}\" is ready. Your first match: {first.ScheduledAt:ddd dd MMM, HH:mm}.";
+
+                try
+                {
+                    await notificationService.SendToUserAsync(
+                        userId: t.CaptainUserId!.Value,
+                        title: cup.NameEn,
+                        body: body,
+                        type: "cup",
+                        targetId: cup.Id);
+                }
+                catch { /* فشل إشعار واحد ما يوقفش الباقي */ }
+            }
+        }
+
         // ─────────────────────────────────────────────────────────────────────
-        #region  READ OPERATIONS
+        #region READ OPERATIONS
         // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupDto> GetByIdAsync(int id)
@@ -195,7 +233,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         public async Task<IEnumerable<CupTeamDto>> GetPendingRequestsAsync(int cupId, UserRole role, int centerId)
         {
             var cup = await _cupRepo.GetByIdAsync(cupId)
-       ?? throw new NotFoundException("Cup", cupId);
+                ?? throw new NotFoundException("Cup", cupId);
             await RequireAdminOfCup(cup, role, centerId);
             var teams = await _cupRepo.GetPendingTeamsByCupAsync(cupId);
             return _mapper.Map<IEnumerable<CupTeamDto>>(teams);
@@ -206,9 +244,23 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             var teams = await _cupRepo.GetTeamsByCupAsync(cupId);
             return _mapper.Map<IEnumerable<CupTeamDto>>(teams);
         }
+
+        public async Task<IEnumerable<UserLookupDto>> SearchCaptainsAsync(string email)
+        {
+            var term = (email ?? "").Trim();
+            if (term.Length < 3) return [];          // يمنع استعراض كل المستخدمين
+            var users = await userRepo.SearchPlayersByEmailAsync(term, 8);
+            return users.Select(u => new UserLookupDto
+            {
+                Id = u.Id,
+                Name = u.Name,
+                Email = u.Email
+            });
+        }
         #endregion
+
         // ─────────────────────────────────────────────────────────────────────
-        #region  CREATE
+        #region CREATE
         // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupDto> CreateAsync(
@@ -237,10 +289,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             cup.CreatedAt = DateTime.UtcNow;
 
             ValidateCupStructure(
-        dto.Format,
-        dto.MaxTeams,
-        dto.GroupSize,
-        dto.TeamsAdvancingPerGroup);
+                dto.Format,
+                dto.MaxTeams,
+                dto.GroupSize,
+                dto.TeamsAdvancingPerGroup);
+
+            ValidateSchedule(cup);
 
             if (dto.RegistrationDeadline <= DateTime.UtcNow)
                 throw new BusinessException(
@@ -261,18 +315,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 throw new BusinessException(
                     messageAr: "رسوم الاشتراك لا يمكن أن تكون سالبة.",
                     messageEn: "Entry fee cannot be negative.");
-            await _cupRepo.CreateAsync(cup);
 
-            // Cups are created as Draft — nobody's registration-eligible yet, so we
-            // don't broadcast here. The "registration open" notification fires from
-            // NotifyCupStatusChangeAsync once an admin actually flips the status
-            // via UpdateAsync.
+            await _cupRepo.CreateAsync(cup);
 
             return _mapper.Map<CupDto>(cup);
         }
         #endregion
+
         // ─────────────────────────────────────────────────────────────────────
-        #region  UPDATE
+        #region UPDATE
         // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupDto> UpdateAsync(
@@ -309,9 +360,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             }
 
             bool registrationHasStarted =
-     cup.Status == CupStatus.RegistrationOpen ||
-     cup.Status == CupStatus.GroupStage ||
-     cup.Status == CupStatus.KnockoutStage;
+                cup.Status == CupStatus.RegistrationOpen ||
+                cup.Status == CupStatus.GroupStage ||
+                cup.Status == CupStatus.KnockoutStage;
 
             if (!string.IsNullOrWhiteSpace(dto.NameAr))
                 cup.NameAr = dto.NameAr.Trim();
@@ -352,9 +403,28 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                         messageAr: "لا يمكن تغيير إعدادات نظام البطولة أو عدد الفرق أو حجم المجموعات بعد بدء التسجيل.",
                         messageEn: "Cup format, team count and group settings cannot be changed after registration starts.");
             }
+
+            // ── Schedule settings (قبل/أثناء دور المجموعات) ──────────────────
+            bool scheduleEditable = cup.Status is CupStatus.Draft
+                or CupStatus.RegistrationOpen or CupStatus.GroupStage;
+
+            if (scheduleEditable)
+            {
+                cup.ScheduleMode = dto.ScheduleMode ?? cup.ScheduleMode;
+                cup.DailyStartTime = dto.DailyStartTime ?? cup.DailyStartTime;
+                cup.DailyEndTime = dto.DailyEndTime ?? cup.DailyEndTime;
+                cup.MatchDurationMinutes = dto.MatchDurationMinutes ?? cup.MatchDurationMinutes;
+                cup.HalftimeMinutes = dto.HalftimeMinutes ?? cup.HalftimeMinutes;
+                cup.BreakBetweenMatchesMinutes = dto.BreakBetweenMatchesMinutes ?? cup.BreakBetweenMatchesMinutes;
+                cup.PlayDaysMask = dto.PlayDaysMask ?? cup.PlayDaysMask;
+                cup.RestDaysBetweenRounds = dto.RestDaysBetweenRounds ?? cup.RestDaysBetweenRounds;
+
+                ValidateSchedule(cup);
+            }
+
             bool datesEditable =
-     cup.Status == CupStatus.Draft ||
-     cup.Status == CupStatus.RegistrationOpen;
+                cup.Status == CupStatus.Draft ||
+                cup.Status == CupStatus.RegistrationOpen;
 
             if (datesEditable)
             {
@@ -416,7 +486,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             return _mapper.Map<CupDto>(cup);
         }
         #endregion
-        #region  DELETE  // ─────────────────────────────────────────────────────────────────────
+
+        // ─────────────────────────────────────────────────────────────────────
+        #region DELETE
+        // ─────────────────────────────────────────────────────────────────────
 
         public async Task DeleteAsync(
             int cupId,
@@ -437,18 +510,17 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             await _cupRepo.DeleteAsync(cupId);
         }
-
         #endregion
 
         // ─────────────────────────────────────────────────────────────────────
-        #region JOIN REQUESTS  // ─────────────────────────────────────────────────────────────────────
+        #region JOIN REQUESTS
+        // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupTeamDto> SubmitJoinRequestAsync(
             int cupId,
             int userId,
             string teamName)
         {
-
             Cup cup = await _cupRepo.GetByIdAsync(cupId)
                    ?? throw new NotFoundException(
                        messageAr: "لم يتم العثور على البطولة المطلوبة.",
@@ -463,6 +535,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 throw new BusinessException(
                     messageAr: $"هذا البطولة ممتلئة ({cup.MaxTeams}/{cup.MaxTeams} فريق).",
                     messageEn: $"This cup is full ({cup.MaxTeams}/{cup.MaxTeams} teams).");
+
             if (cup.RegistrationDeadline <= DateTime.UtcNow)
                 throw new BusinessException(
                     messageAr: "انتهت فترة التسجيل في هذه البطولة.",
@@ -477,6 +550,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 throw new BusinessException(
                     messageAr: "اسم الفريق يجب ألا يتجاوز 100 حرف.",
                     messageEn: "Team name cannot exceed 100 characters.");
+
             var existing = await _cupRepo.GetTeamByCupAndUserAsync(cupId, userId);
             if (existing != null)
             {
@@ -494,29 +568,30 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             {
                 CupId = cupId,
                 CaptainUserId = userId,
-                TeamName = teamName,
+                TeamName = teamName.Trim(),
                 Status = CupTeamStatus.Pending,
                 RegisteredAt = DateTime.UtcNow
             };
 
             await _cupRepo.CreateTeamAsync(team);
 
-            // Direct notification to the admin who owns the cup — not a topic
-            // broadcast, since only that admin needs to act on it.
             await notificationService.SendToUserAsync(
-     userId: cup.CreatedByAdminId,
-     title: cup.NameEn,
-     body: $"A new team has requested to join the \"{cup.NameEn}\" tournament. Review the request to approve or reject it.",
-     type: "cup", targetId: cup.Id);
+                userId: cup.CreatedByAdminId,
+                title: cup.NameEn,
+                body: $"A new team has requested to join the \"{cup.NameEn}\" tournament. Review the request to approve or reject it.",
+                type: "cup", targetId: cup.Id);
+
             return _mapper.Map<CupTeamDto>(team);
         }
         #endregion
 
+        // ─────────────────────────────────────────────────────────────────────
+        #region ADD TEAM BY ADMIN
+        // ─────────────────────────────────────────────────────────────────────
 
-        #region  Add Teams by admin 
         public async Task<CupTeamDto> AddTeamByAdminAsync(
-    int cupId, string teamName, int? captainUserId,
-    UserRole callerRole, int callerYouthCenterId)
+            int cupId, string teamName, int? captainUserId,
+            UserRole callerRole, int callerYouthCenterId)
         {
             CupTeam? created = null;
             Cup? updatedCup = null;
@@ -531,10 +606,25 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
                 await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
 
-                if (cup.Status != CupStatus.RegistrationOpen && cup.Status != CupStatus.Draft)
+                // الكابتن اختياري؛ لو متحدد لازم يكون لاعب صالح وغير مسجل
+                if (captainUserId is int cid)
+                {
+                    var user = await userRepo.GetByIdAsync(cid);
+                    if (user is null || user.IsDeleted || user.Role != UserRole.User)
+                        throw new BusinessException(
+                            "المستخدم غير صالح ككابتن.",
+                            "This user cannot be a captain.");
+
+                    if (await _cupRepo.GetTeamByCupAndUserAsync(cupId, cid) != null)
+                        throw new BusinessException(
+                            "هذا اللاعب مسجل بالفعل في البطولة.",
+                            "This player is already registered in this cup.");
+                }
+
+                if (cup.Status != CupStatus.RegistrationOpen)
                     throw new BusinessException(
-                        "لا يمكن إضافة فرق في هذه المرحلة.",
-                        "Teams can only be added during Draft or RegistrationOpen.");
+                        "لا يمكن إضافة فرق إلا أثناء التسجيل.",
+                        "Teams can only be added while registration is open.");
 
                 if (cup.CurrentTeamCount >= cup.MaxTeams)
                     throw new BusinessException("البطولة ممتلئة.", "The cup is full.");
@@ -542,7 +632,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 if (string.IsNullOrWhiteSpace(teamName) || teamName.Length > 100)
                     throw new BusinessException("اسم الفريق غير صالح.", "Invalid team name.");
 
-                // الكابتن اختياري: لو مش محدد نستخدم الأدمن نفسه كمالك مؤقت
                 var team = new CupTeam
                 {
                     CupId = cupId,
@@ -565,19 +654,35 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
             });
 
-            if (filled) await NotifyCupStatusChangeAsync(updatedCup!);
+            // إشعار الكابتن المربوط (لو موجود)
+            if (captainUserId != null && created != null)
+            {
+                try
+                {
+                    await notificationService.SendToUserAsync(
+                        userId: captainUserId.Value,
+                        title: updatedCup!.NameEn,
+                        body: $"You were added as captain of team \"{created.TeamName}\" in \"{updatedCup.NameEn}\".",
+                        type: "cup", targetId: updatedCup.Id);
+                }
+                catch { }
+            }
+
+            if (filled) await AfterGroupStageStartedAsync(updatedCup!);
+
             return _mapper.Map<CupTeamDto>(created);
         }
         #endregion
 
+        // ─────────────────────────────────────────────────────────────────────
+        #region ACCEPT / REJECT
+        // ─────────────────────────────────────────────────────────────────────
 
-        #region Accept And REject
         public async Task AcceptJoinRequestAsync(
-       int teamId,
-       UserRole callerRole,
-       int callerYouthCenterId)
+            int teamId,
+            UserRole callerRole,
+            int callerYouthCenterId)
         {
-            // نحتاج CupId فقط لتحديد السجل الذي سنحجزه.
             var cupId = await _cupRepo.GetCupIdByTeamIdAsync(teamId)
                 ?? throw new NotFoundException(
                     messageAr: $"لم يتم العثور على الفريق بالمعرف ({teamId}).",
@@ -589,18 +694,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             await _cupRepo.ExecuteInTransactionAsync(async () =>
             {
-                // يجب أن يكون أول قراءة داخل المعاملة هي قفل البطولة.
                 var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
                     ?? throw new NotFoundException(
                         messageAr: "لم يتم العثور على البطولة المطلوبة.",
                         messageEn: "Cup not found.");
 
-                await RequireAdminOfCup(
-                    cup,
-                    callerRole,
-                    callerYouthCenterId);
+                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
 
-                // نقرأ الفريق بعد الحصول على القفل، وليس قبله.
                 var team = await _cupRepo.GetTeamByIdAsync(teamId)
                     ?? throw new NotFoundException(
                         messageAr: $"لم يتم العثور على الفريق بالمعرف ({teamId}).",
@@ -641,23 +741,24 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
             });
 
-            if (acceptedTeam?.CaptainUserId != null) await notificationService.SendToUserAsync(
-                 userId: acceptedTeam?.CaptainUserId ?? 0,
-                 title: updatedCup!.NameEn,
-                 body: $"Your team's request to join the \"{updatedCup.NameEn}\" tournament has been approved. Good luck!",
-                 type: "cup",
-                 targetId: updatedCup.Id);
+            if (acceptedTeam?.CaptainUserId is int captainId)
+            {
+                await notificationService.SendToUserAsync(
+                    userId: captainId,
+                    title: updatedCup!.NameEn,
+                    body: $"Your team's request to join the \"{updatedCup.NameEn}\" tournament has been approved. Good luck!",
+                    type: "cup",
+                    targetId: updatedCup.Id);
+            }
 
             if (cupCompleted)
-            {
-                await NotifyCupStatusChangeAsync(updatedCup!);
-            }
+                await AfterGroupStageStartedAsync(updatedCup!);
         }
 
         public async Task RejectJoinRequestAsync(
-     int teamId,
-     UserRole callerRole,
-     int callerYouthCenterId)
+            int teamId,
+            UserRole callerRole,
+            int callerYouthCenterId)
         {
             var cupId = await _cupRepo.GetCupIdByTeamIdAsync(teamId)
                 ?? throw new NotFoundException(
@@ -674,10 +775,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                         messageAr: "لم يتم العثور على البطولة المطلوبة.",
                         messageEn: "Cup not found.");
 
-                await RequireAdminOfCup(
-                    cup,
-                    callerRole,
-                    callerYouthCenterId);
+                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
 
                 var team = await _cupRepo.GetTeamByIdAsync(teamId)
                     ?? throw new NotFoundException(
@@ -700,24 +798,27 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 rejectedTeam = team;
             });
 
-            if (rejectedTeam?.CaptainUserId != null) await notificationService.SendToUserAsync(
-                     userId: rejectedTeam?.CaptainUserId ?? 0,
-                     title: cupForNotification!.NameEn,
-                     body: $"Your team's request to join the \"{cupForNotification.NameEn}\" tournament has been declined.",
-                     type: "cup",
-                     targetId: cupForNotification.Id);
+            if (rejectedTeam?.CaptainUserId is int captainId)
+            {
+                await notificationService.SendToUserAsync(
+                    userId: captainId,
+                    title: cupForNotification!.NameEn,
+                    body: $"Your team's request to join the \"{cupForNotification.NameEn}\" tournament has been declined.",
+                    type: "cup",
+                    targetId: cupForNotification.Id);
+            }
         }
         #endregion
 
         // ─────────────────────────────────────────────────────────────────────
-        #region  MATCH MANAGEMENT
+        #region MATCH MANAGEMENT
         // ─────────────────────────────────────────────────────────────────────
 
         public async Task<CupMatchDto> EnterMatchResultAsync(
-    int matchId,
-    EnterMatchResultDto dto,
-    UserRole callerRole,
-    int callerYouthCenterId)
+            int matchId,
+            EnterMatchResultDto dto,
+            UserRole callerRole,
+            int callerYouthCenterId)
         {
             var match = await _cupRepo.GetMatchByIdAsync(matchId)
                 ?? throw new NotFoundException(
@@ -755,7 +856,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     winnerId = match.TeamAId;
                 else if (dto.ScoreB > dto.ScoreA)
                     winnerId = match.TeamBId;
-                // else: draw, winnerId stays null
 
                 await _cupRepo.EnterMatchResultAsync(
                     matchId: matchId,
@@ -801,12 +901,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
 
                 await _cupRepo.EnterMatchResultAsync(
-      matchId: matchId,
-      scoreA: dto.ScoreA,
-      scoreB: dto.ScoreB,
-      penaltyScoreA: dto.PenaltyScoreA,
-      penaltyScoreB: dto.PenaltyScoreB,
-      winnerId: winnerId);
+                    matchId: matchId,
+                    scoreA: dto.ScoreA,
+                    scoreB: dto.ScoreB,
+                    penaltyScoreA: dto.PenaltyScoreA,
+                    penaltyScoreB: dto.PenaltyScoreB,
+                    winnerId: winnerId);
 
                 await _cupRepo.AdvanceWinnerToNextRoundAsync(
                     match.CupId, match.Round, match.MatchNumber, winnerId!.Value);
@@ -850,7 +950,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
 
-            if (scheduledAt < DateTime.UtcNow)
+            // Flutter بيبعت وقت محلي (القاهرة) بدون Z، فنقارن بتوقيت القاهرة
+            var nowCairo = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CairoTz);
+            if (scheduledAt < nowCairo)
                 throw new BusinessException(
                     messageAr: "لا يمكن أن يكون موعد المباراة في الماضي.",
                     messageEn: "Scheduled date cannot be in the past.");
@@ -861,7 +963,11 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: "Cannot reschedule a completed match.");
 
             var start = TimeOnly.FromDateTime(scheduledAt);
-            var end = start.Add(MatchDuration);
+            var end = start.AddMinutes(cup.MatchDurationMinutes + cup.HalftimeMinutes);
+            if (end <= start)   // عدّى منتصف الليل
+                throw new BusinessException(
+                    "المباراة لا يمكن أن تتخطى منتصف الليل.",
+                    "A match cannot run past midnight.");
 
             var conflict = await _availabilityRepo.HasConflictAsync(
                 cup.YouthCenterActivityId,
@@ -876,19 +982,163 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: "This time slot is already reserved or has another match scheduled on this activity.");
 
             match.ScheduledAt = scheduledAt;
+            match.IsManuallyScheduled = true;
             if (match.Status == CupMatchStatus.Pending)
                 match.Status = CupMatchStatus.Scheduled;
             await _cupRepo.UpdateMatchAsync(match);
 
-            // Scheduling a single match is a per-match detail, not a cup-wide
-            // event, so it stays without a topic broadcast. If you want to notify
-            // both teams' captains here, that's a SendToUserAsync x2, not a topic.
+            // إشعار الكابتنين (لو موجودين)
+            var label = match.TeamA != null && match.TeamB != null
+                ? $"{match.TeamA.TeamName} vs {match.TeamB.TeamName}"
+                : cup.NameEn;
+
+            var captainIds = new[] { match.TeamA?.CaptainUserId, match.TeamB?.CaptainUserId }
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .Distinct();
+
+            foreach (var id in captainIds)
+            {
+                try
+                {
+                    await notificationService.SendToUserAsync(
+                        userId: id,
+                        title: cup.NameEn,
+                        body: $"{label}: {scheduledAt:ddd dd MMM, HH:mm}",
+                        type: "cup", targetId: cup.Id);
+                }
+                catch { }
+            }
 
             return _mapper.Map<CupMatchDto>(match);
         }
+
+        public async Task<int> RegenerateScheduleAsync(
+            int cupId, bool overwriteManual, UserRole role, int centerId)
+        {
+            int count = 0;
+            Cup? cupRef = null;
+
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException("Cup", cupId);
+                await RequireAdminOfCup(cup, role, centerId);
+
+                if (cup.Status is not (CupStatus.GroupStage or CupStatus.KnockoutStage))
+                    throw new BusinessException(
+                        "الجدول بيتولد بعد بدء البطولة فقط.",
+                        "The schedule can only be generated after the cup has started.");
+
+                cup.ScheduleMode = CupScheduleMode.Automatic;   // يسمح بالتحويل من Manual
+                ValidateSchedule(cup);
+                await _cupRepo.UpdateAsync(cup);
+
+                count = await scheduler.ScheduleAsync(cup, overwriteManual);
+                cupRef = cup;
+            });
+
+            if (cupRef != null) await NotifyScheduleReadyAsync(cupRef);
+            return count;
+        }
         #endregion
+
         // ─────────────────────────────────────────────────────────────────────
-        #region  PRIVATE HELPERS
+        #region START CUP / REMOVE TEAM
+        // ─────────────────────────────────────────────────────────────────────
+
+        public async Task StartCupAsync(int cupId, UserRole callerRole, int callerYouthCenterId)
+        {
+            Cup? started = null;
+
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على البطولة.", messageEn: "Cup not found.");
+
+                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
+
+                if (cup.Status != CupStatus.RegistrationOpen)
+                    throw new BusinessException(
+                        messageAr: "يمكن بدء البطولة فقط أثناء فترة التسجيل.",
+                        messageEn: "A cup can only be started while registration is open.");
+
+                var accepted = (await _cupRepo.GetAcceptedTeamsByCupAsync(cupId)).ToList();
+
+                // يتحقق: القسمة على حجم المجموعة + المتأهلين قوة 2
+                ValidateCupStructure(cup.Format, accepted.Count, cup.GroupSize, cup.TeamsAdvancingPerGroup);
+
+                // الطلبات المعلقة تتقفل
+                foreach (var p in (await _cupRepo.GetPendingTeamsByCupAsync(cupId)).ToList())
+                    await _cupRepo.RejectTeamAsync(p.Id);
+
+                cup.MaxTeams = accepted.Count;
+                cup.CurrentTeamCount = accepted.Count;
+                cup.Status = CupStatus.GroupStage;
+                await _cupRepo.UpdateAsync(cup);
+
+                await GenerateGroupsAsync(cupId);
+                await GenerateGroupMatchesAsync(cupId);
+                started = cup;
+            });
+
+            await AfterGroupStageStartedAsync(started!);
+        }
+
+        public async Task RemoveTeamAsync(int cupId, int teamId, UserRole callerRole, int callerYouthCenterId)
+        {
+            CupTeam? removed = null;
+            Cup? cupRef = null;
+
+            await _cupRepo.ExecuteInTransactionAsync(async () =>
+            {
+                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على البطولة.", messageEn: "Cup not found.");
+
+                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
+
+                if (cup.Status != CupStatus.Draft && cup.Status != CupStatus.RegistrationOpen)
+                    throw new BusinessException(
+                        messageAr: "لا يمكن حذف فريق بعد بدء البطولة.",
+                        messageEn: "Teams cannot be removed after the cup has started.");
+
+                var team = await _cupRepo.GetTeamByIdAsync(teamId)
+                    ?? throw new NotFoundException(
+                        messageAr: "لم يتم العثور على الفريق.", messageEn: "Team not found.");
+
+                if (team.CupId != cupId)
+                    throw new BusinessException(
+                        messageAr: "الفريق لا ينتمي لهذه البطولة.",
+                        messageEn: "The team does not belong to this cup.");
+
+                if (team.Status == CupTeamStatus.Accepted && cup.CurrentTeamCount > 0)
+                {
+                    cup.CurrentTeamCount--;
+                    await _cupRepo.UpdateAsync(cup);
+                }
+
+                await _cupRepo.DeleteTeamAsync(teamId);
+                removed = team;
+                cupRef = cup;
+            });
+
+            // كابتن فاضي = مفيش إشعار
+            if (removed!.CaptainUserId is int captainId &&
+                captainId != cupRef!.CreatedByAdminId)
+            {
+                await notificationService.SendToUserAsync(
+                    userId: captainId,
+                    title: cupRef.NameEn,
+                    body: $"Your team \"{removed.TeamName}\" was removed from \"{cupRef.NameEn}\".",
+                    type: "cup", targetId: cupRef.Id);
+            }
+        }
+        #endregion
+
+        // ─────────────────────────────────────────────────────────────────────
+        #region PRIVATE HELPERS
         // ─────────────────────────────────────────────────────────────────────
 
         private async Task UpdateStandings(CupMatch match, EnterMatchResultDto dto)
@@ -994,13 +1244,21 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             CreateKnockoutBracket(cupId, groups.Count, cup.TeamsAdvancingPerGroup, matches);
             await _cupRepo.CreateMatchesAsync(matches);
+
+            // لو الجدولة فشلت (مفيش مواعيد) ما نكسرش بدء الكأس:
+            // المباريات تفضل Pending والأدمن يعمل "إعادة توليد الجدول"
+            if (cup.ScheduleMode == CupScheduleMode.Automatic)
+            {
+                try { await scheduler.ScheduleAsync(cup); }
+                catch (BusinessException) { }
+            }
         }
 
         private static void CreateKnockoutBracket(
-    int cupId,
-    int groupCount,
-    int teamsAdvancingPerGroup,
-    List<CupMatch> matches)
+            int cupId,
+            int groupCount,
+            int teamsAdvancingPerGroup,
+            List<CupMatch> matches)
         {
             int knockoutTeams = groupCount * teamsAdvancingPerGroup;
 
@@ -1094,11 +1352,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 _ => "none"
             };
 
+        // ─── Structure / Schedule Validation ──────────────────────────────────
+
         private static void ValidateCupStructure(
-CupFormat format,
-int maxTeams,
-int groupSize,
-int teamsAdvancingPerGroup)
+            CupFormat format,
+            int maxTeams,
+            int groupSize,
+            int teamsAdvancingPerGroup)
         {
             if (maxTeams < 2)
                 throw new BusinessException(
@@ -1107,8 +1367,6 @@ int teamsAdvancingPerGroup)
 
             if (format == CupFormat.SingleElimination)
             {
-                // Current generation logic always creates groups.
-                // Do not allow this format until its dedicated bracket generation is implemented.
                 throw new BusinessException(
                     messageAr: "نظام خروج المغلوب المباشر غير مدعوم حاليًا.",
                     messageEn: "Single elimination format is not supported yet.");
@@ -1148,100 +1406,35 @@ int teamsAdvancingPerGroup)
                     messageEn: $"The number of knockout teams ({knockoutTeams}) must be a power of 2.");
         }
 
+        private static void ValidateSchedule(Cup c)
+        {
+            if (c.MatchDurationMinutes is < 10 or > 180)
+                throw new BusinessException("مدة المباراة غير صالحة.", "Match duration must be 10–180 minutes.");
+            if (c.HalftimeMinutes is < 0 or > 30)
+                throw new BusinessException("مدة الاستراحة بين الشوطين غير صالحة.", "Halftime must be 0–30 minutes.");
+            if (c.BreakBetweenMatchesMinutes is < 0 or > 60)
+                throw new BusinessException("الاستراحة بين المباريات غير صالحة.", "Break between matches must be 0–60 minutes.");
+            if (c.RestDaysBetweenRounds is < 0 or > 14)
+                throw new BusinessException("عدد أيام الراحة غير صالح.", "Rest days must be 0–14.");
+            if (c.PlayDaysMask is < 1 or > 127)
+                throw new BusinessException("اختر يوم لعب واحد على الأقل.", "Select at least one play day.");
+
+            if (c.ScheduleMode != CupScheduleMode.Automatic) return;
+
+            if (c.DailyStartTime is null || c.DailyEndTime is null)
+                throw new BusinessException("حدد وقت البداية والنهاية.", "Start and end times are required.");
+            if (c.DailyEndTime <= c.DailyStartTime)
+                throw new BusinessException("وقت النهاية يجب أن يكون بعد البداية.", "End time must be after start time.");
+
+            var slot = c.MatchDurationMinutes + c.HalftimeMinutes;
+            if ((c.DailyEndTime.Value - c.DailyStartTime.Value).TotalMinutes < slot)
+                throw new BusinessException("الفترة اليومية أقصر من وقت المباراة.", "Daily window is shorter than one match.");
+        }
+
         public Task CancelMyJoinRequestAsync(int cupId, int userId)
         {
             throw new NotImplementedException();
         }
         #endregion
-
-        #region  Start Cup
-        public async Task StartCupAsync(int cupId, UserRole callerRole, int callerYouthCenterId)
-        {
-            Cup? started = null;
-
-            await _cupRepo.ExecuteInTransactionAsync(async () =>
-            {
-                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
-                    ?? throw new NotFoundException(
-                        messageAr: "لم يتم العثور على البطولة.", messageEn: "Cup not found.");
-
-                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
-
-                if (cup.Status != CupStatus.RegistrationOpen)
-                    throw new BusinessException(
-                        messageAr: "يمكن بدء البطولة فقط أثناء فترة التسجيل.",
-                        messageEn: "A cup can only be started while registration is open.");
-
-                var accepted = (await _cupRepo.GetAcceptedTeamsByCupAsync(cupId)).ToList();
-
-                // يتحقق: القسمة على حجم المجموعة + المتأهلين قوة 2
-                ValidateCupStructure(cup.Format, accepted.Count, cup.GroupSize, cup.TeamsAdvancingPerGroup);
-
-                // الطلبات المعلقة تتقفل
-                foreach (var p in (await _cupRepo.GetPendingTeamsByCupAsync(cupId)).ToList())
-                    await _cupRepo.RejectTeamAsync(p.Id);
-
-                cup.MaxTeams = accepted.Count;
-                cup.CurrentTeamCount = accepted.Count;
-                cup.Status = CupStatus.GroupStage;
-                await _cupRepo.UpdateAsync(cup);
-
-                await GenerateGroupsAsync(cupId);
-                await GenerateGroupMatchesAsync(cupId);
-                started = cup;
-            });
-
-            await NotifyCupStatusChangeAsync(started!);
-        }
-        #endregion
-
-        public async Task RemoveTeamAsync(int cupId, int teamId, UserRole callerRole, int callerYouthCenterId)
-        {
-            CupTeam? removed = null;
-            Cup? cupRef = null;
-
-            await _cupRepo.ExecuteInTransactionAsync(async () =>
-            {
-                var cup = await _cupRepo.GetByIdForUpdateAsync(cupId)
-                    ?? throw new NotFoundException(
-                        messageAr: "لم يتم العثور على البطولة.", messageEn: "Cup not found.");
-
-                await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
-
-                if (cup.Status != CupStatus.Draft && cup.Status != CupStatus.RegistrationOpen)
-                    throw new BusinessException(
-                        messageAr: "لا يمكن حذف فريق بعد بدء البطولة.",
-                        messageEn: "Teams cannot be removed after the cup has started.");
-
-                var team = await _cupRepo.GetTeamByIdAsync(teamId)
-                    ?? throw new NotFoundException(
-                        messageAr: "لم يتم العثور على الفريق.", messageEn: "Team not found.");
-
-                if (team.CupId != cupId)
-                    throw new BusinessException(
-                        messageAr: "الفريق لا ينتمي لهذه البطولة.",
-                        messageEn: "The team does not belong to this cup.");
-
-                if (team.Status == CupTeamStatus.Accepted && cup.CurrentTeamCount > 0)
-                {
-                    cup.CurrentTeamCount--;
-                    await _cupRepo.UpdateAsync(cup);
-                }
-
-                await _cupRepo.DeleteTeamAsync(teamId);
-                removed = team;
-                cupRef = cup;
-            });
-
-            if (removed!.CaptainUserId != cupRef!.CreatedByAdminId)
-                await notificationService.SendToUserAsync(
-                    userId: removed.CaptainUserId ?? 0,
-                    title: cupRef.NameEn,
-                    body: $"Your team \"{removed.TeamName}\" was removed from \"{cupRef.NameEn}\".",
-                    type: "cup", targetId: cupRef.Id);
-        }
     }
-
-
-
 }

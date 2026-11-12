@@ -19,6 +19,7 @@ using System.Text.Json;
 using global::YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations;
 using Microsoft.Extensions.Options;
 using global::YouthCenterWeb.YouthCenterWeb.Infrastructure.PushNotification;
+using global::YouthCenterWeb.YouthCenterWeb.Application.Common.ICupScheduler;
 
 public static class DependencyInjection
 {
@@ -93,7 +94,7 @@ public static class DependencyInjection
         services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
         services.AddScoped<IOtpService, OtpService>();
         services.AddScoped<IEmailService, EmailService>();
-
+        services.AddScoped<ICupScheduler, CupSchedulerService>();
         services.AddHealthChecks()
             .AddCheck<FirebaseHealthCheck>("firebase");
 

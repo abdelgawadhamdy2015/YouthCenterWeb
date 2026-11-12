@@ -547,5 +547,12 @@ public class CupRepo(AppDbContext context) : ICupRepo
             await transaction.RollbackAsync();
             throw;
         }
+
+    }
+
+    public async Task UpdateMatchesAsync(IEnumerable<CupMatch> matches)
+    {
+        _context.CupMatches.UpdateRange(matches);
+        await _context.SaveChangesAsync();
     }
 }

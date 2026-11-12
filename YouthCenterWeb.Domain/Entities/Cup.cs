@@ -55,6 +55,23 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public DateTime StartDate { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public CupScheduleMode ScheduleMode { get; set; } = CupScheduleMode.Manual;
+
+        /// بداية وقت اللعب اليومي (مثلاً 19:00)
+        public TimeOnly? DailyStartTime { get; set; }
+        /// نهاية وقت اللعب اليومي (مثلاً 22:00)
+        public TimeOnly? DailyEndTime { get; set; }
+
+        public int MatchDurationMinutes { get; set; } = 45;
+        public int BreakMinutes { get; set; } = 15;
+
+        public int HalftimeMinutes { get; set; } = 15;               // بين الشوطين
+        public int BreakBetweenMatchesMinutes { get; set; } = 0;     // بين مباراتين (اختياري)
+
+        /// Bitmask: Sunday=bit0 ... Saturday=bit6. 127 = كل الأيام
+        public int PlayDaysMask { get; set; } = 127;
+        public int RestDaysBetweenRounds { get; set; } = 0;
+
 
         // ── Navigation ──────────────────────────────────────────────────────
 

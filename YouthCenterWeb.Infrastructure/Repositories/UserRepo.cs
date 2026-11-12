@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
@@ -22,7 +23,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
         public Task<List<User>> GetAllAsync(
             params Expression<Func<User, object>>[] includes) =>
             WithIncludes().ToListAsync();
-
+        public Task<List<User>> SearchPlayersByEmailAsync(string term, int take) =>
+            _context.Users.AsNoTracking()
+                .Where(u => !u.IsDeleted && u.Role == UserRole.User && u.Email.StartsWith(term))
+                .OrderBy(u => u.Email).Take(take).ToListAsync();
         public Task<User?> GetByIdAsync(
             int id,
             params Expression<Func<User, object>>[] includes) =>

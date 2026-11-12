@@ -147,6 +147,7 @@ public interface ICupRepo
     /// </summary>
     Task SeedKnockoutMatchesAsync(int cupId);
     Task<int?> GetCupIdByTeamIdAsync(int teamId);
+    Task UpdateMatchesAsync(IEnumerable<CupMatch> matches);
 
     Task<Cup?> GetByIdForUpdateAsync(int cupId);
     Task DeleteTeamAsync(int teamId);

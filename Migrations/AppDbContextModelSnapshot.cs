@@ -55,6 +55,16 @@ namespace YouthCenterWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("BreakBetweenMatchesMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("BreakMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(15);
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -67,6 +77,12 @@ namespace YouthCenterWeb.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<TimeOnly?>("DailyEndTime")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("DailyStartTime")
+                        .HasColumnType("time");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
@@ -84,6 +100,16 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(4);
 
+                    b.Property<int>("HalftimeMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(15);
+
+                    b.Property<int>("MatchDurationMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(45);
+
                     b.Property<int>("MaxTeams")
                         .HasColumnType("int");
 
@@ -96,8 +122,24 @@ namespace YouthCenterWeb.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("PlayDaysMask")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(127);
+
                     b.Property<DateTime>("RegistrationDeadline")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("RestDaysBetweenRounds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("ScheduleMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("Manual");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
@@ -173,6 +215,11 @@ namespace YouthCenterWeb.Migrations
 
                     b.Property<int?>("GroupId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsManuallyScheduled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("MatchNumber")
                         .HasColumnType("int");

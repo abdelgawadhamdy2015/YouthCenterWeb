@@ -22,6 +22,17 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
 
         public double? EntryFee { get; set; }
 
+        public CupScheduleMode? ScheduleMode { get; set; }
+        public TimeOnly? DailyStartTime { get; set; }
+        public TimeOnly? DailyEndTime { get; set; }
+        public int? MatchDurationMinutes { get; set; }
+        public int? BreakMinutes { get; set; }
+
+        public int? HalftimeMinutes { get; set; }
+        public int? BreakBetweenMatchesMinutes { get; set; }
+        public int? PlayDaysMask { get; set; }
+        public int? RestDaysBetweenRounds { get; set; }
+
         public DateTime? RegistrationDeadline { get; set; }
 
         public DateTime? StartDate { get; set; }
