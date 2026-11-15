@@ -31,6 +31,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         // ── POST api/auth/verify-otp ───────────────────────────────────────────
         [HttpPost("verify-otp")]
         [AllowAnonymous]
+        [EnableRateLimiting("otp-verify")]
         public async Task<IActionResult> VerifyOtp(VerifyOtpDto dto)
         {
             var result = await otpService.VerifyOtpAsync(dto);
@@ -40,7 +41,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
         // ── POST api/auth/register ─────────────────────────────────────────────
         [HttpPost("register")]
         [AllowAnonymous]
-        [EnableRateLimiting("otp")]
+        [EnableRateLimiting("login")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
             var result = await authService.RegisterAsync(dto);

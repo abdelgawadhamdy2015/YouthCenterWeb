@@ -24,7 +24,7 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
 
         builder.Property(r => r.EndTime)
             .IsRequired();
-
+        builder.Property(r => r.CancelledByUser).IsRequired().HasDefaultValue(false);
         builder.Property(r => r.Status)
       .IsRequired()
       .HasConversion<string>()

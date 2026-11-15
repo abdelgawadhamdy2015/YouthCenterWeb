@@ -1,80 +1,72 @@
 using Microsoft.EntityFrameworkCore;
-using YouthCenterWeb.Models;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.helper;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
 
-namespace YouthCenterWeb.YouthCenterWeb.Application.Services;
-
-public class ReservationStatusBackgroundService(
-    IServiceScopeFactory scopeFactory)
-        : BackgroundService
+namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
-    private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
-
-    protected override async Task ExecuteAsync(
-        CancellationToken stoppingToken)
+    public class ReservationStatusBackgroundService(
+        IServiceScopeFactory scopeFactory,
+        ILogger<ReservationStatusBackgroundService> logger) : BackgroundService
     {
-        while (!stoppingToken.IsCancellationRequested)
+        private static readonly TimeSpan Tick = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan RolloverEvery = TimeSpan.FromMinutes(10);
+        private DateTime _lastRolloverUtc = DateTime.MinValue;
+
+        protected override async Task ExecuteAsync(CancellationToken ct)
         {
-            try
+            using var timer = new PeriodicTimer(Tick);
+            do
             {
-                using var scope =
-                    _scopeFactory.CreateScope();
-
-                var context = scope.ServiceProvider
-                    .GetRequiredService<AppDbContext>();
-
-                var now = DateTime.Now;
-
-                // هات الحجوزات اللي لسه Pending أو Confirmed
-                var reservations = await context.Reservations
-                    .Where(x =>
-                        x.Status == ReservationStatus.Pending ||
-                        x.Status == ReservationStatus.Confirmed)
-                    .ToListAsync(stoppingToken);
-
-                foreach (var reservation in reservations)
+                try
                 {
-                    // وقت نهاية الحجز
-                    var reservationEnd =
-                        reservation.Date.Date
-                        .Add(reservation.EndTime.ToTimeSpan());
+                    using var scope = scopeFactory.CreateScope();
+                    var repo = scope.ServiceProvider.GetRequiredService<IReservationRepo>();
+                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                    // لو الحجز انتهى
-                    if (reservationEnd < now)
+                    // كل دقيقة
+                    await repo.ExpireStaleLocksAsync();
+
+                    // كل 10 دقايق
+                    if (DateTime.UtcNow - _lastRolloverUtc >= RolloverEvery)
                     {
-                        // Pending -> Cancelled
-                        if (reservation.Status ==
-                            ReservationStatus.Pending)
-                        {
-                            reservation.Status =
-                                ReservationStatus.Cancelled;
-                        }
+                        await RollOverFinishedAsync(context, ct);
 
-                        // Confirmed -> Completed
-                        else if (reservation.Status ==
-                            ReservationStatus.Confirmed)
-                        {
-                            reservation.Status =
-                                ReservationStatus.Completed;
-                        }
+                        await context.RefreshTokens
+                            .Where(t => t.ExpiresAt < DateTime.UtcNow.AddDays(-7))
+                            .ExecuteDeleteAsync(ct);
+
+                        _lastRolloverUtc = DateTime.UtcNow;
                     }
                 }
-
-                await context.SaveChangesAsync(
-                    stoppingToken);
-                await context.RefreshTokens
-.Where(t => t.ExpiresAt < DateTime.UtcNow.AddDays(-7))
-.ExecuteDeleteAsync(stoppingToken);
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Reservation background job failed");
+                }
             }
-            catch (Exception ex)
+            while (await timer.WaitForNextTickAsync(ct));
+        }
+
+        private static async Task RollOverFinishedAsync(AppDbContext context, CancellationToken ct)
+        {
+            var now = CairoClock.Now;
+
+            var reservations = await context.Reservations
+                .Where(x => (x.Status == ReservationStatus.Pending ||
+                             x.Status == ReservationStatus.Confirmed) &&
+                            x.Date <= now.Date)               // تقليل الصفوف المحمّلة
+                .ToListAsync(ct);
+
+            foreach (var r in reservations)
             {
-                Console.WriteLine(ex.Message);
+                if (r.Date.Date.Add(r.EndTime.ToTimeSpan()) >= now) continue;
+
+                r.Status = r.Status == ReservationStatus.Pending
+                    ? ReservationStatus.Cancelled
+                    : ReservationStatus.Completed;
             }
 
-            // يتكرر كل ساعة
-            await Task.Delay(
-                TimeSpan.FromHours(1),
-                stoppingToken);
+            await context.SaveChangesAsync(ct);
         }
     }
 }

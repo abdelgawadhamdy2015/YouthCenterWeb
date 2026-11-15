@@ -44,6 +44,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 Mobile = dto.Mobile,
                 Role = UserRole.User,
                 YouthCenterId = null,
+                ActivityId = dto.FavActivityId,
+                Bio = dto.Bio,
                 HashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Password)
             };
 

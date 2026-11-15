@@ -1,5 +1,6 @@
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.helper;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.ICupScheduler;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
@@ -12,13 +13,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
     {
         private const int MaxDaysAhead = 180;
 
-        private static readonly TimeZoneInfo CairoTz = ResolveCairoTz();
 
-        private static TimeZoneInfo ResolveCairoTz()
-        {
-            try { return TimeZoneInfo.FindSystemTimeZoneById("Africa/Cairo"); }
-            catch { return TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"); }
-        }
 
         /// PlayDaysMask: Sunday = bit0 ... Saturday = bit6
         public static bool IsPlayDay(Cup cup, DateTime day) =>
@@ -48,7 +43,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 await cupRepo.UpdateMatchesAsync(stale);
             }
 
-            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CairoTz);
+            var now = CairoClock.Now;
             var cursor = cup.StartDate.Date > now.Date ? cup.StartDate.Date : now;
 
             // الخطة بتتبني في الذاكرة وتتطبق مرة واحدة في الآخر،

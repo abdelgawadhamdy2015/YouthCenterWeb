@@ -1,3 +1,4 @@
+using YouthCenterWeb.YouthCenterWeb.Application.Common.helper;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Common.Extensions
@@ -8,8 +9,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Common.Extensions
             this IQueryable<Reservation> query,
             ReservationStatus status)
         {
-            var now = DateTime.Now;
-
+            var now = CairoClock.Now;
             return query.Where(x =>
 
                 (

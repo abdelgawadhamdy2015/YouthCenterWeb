@@ -57,8 +57,8 @@ builder.Services.AddRateLimiter(options =>
             Result = 0,
             Alert = new Alert
             {
-                MessageAr = "حدث خطأ غير متوقع في الخادم.",
-                MessageEn = "Unexpected server error."
+                MessageAr = "محاولات كثيرة، حاول مرة أخرى بعد قليل.",
+                MessageEn = "Too many attempts. Please try again later."
             }
         });
     };
@@ -93,7 +93,14 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));
-
+    options.AddPolicy("otp-verify", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ClientIp(ctx), _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0
+            }));
     // حد عام لكل IP على كل الـ API
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
         RateLimitPartition.GetFixedWindowLimiter(ClientIp(ctx), _ =>
@@ -264,6 +271,7 @@ builder.Services.AddHostedService<ReservationStatusBackgroundService>();
 #endregion
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 
 #region 🔹 Swagger UI
 app.UseSwagger();
@@ -301,6 +309,7 @@ app.UseHttpsRedirection();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseRouting();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

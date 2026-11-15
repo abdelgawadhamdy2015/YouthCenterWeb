@@ -12,7 +12,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Repositories
         // Matches don't have a Duration field yet — treated as fixed 1-hour
         // slots, same as a reservation. Change this if match duration ever
         // becomes configurable per activity.
-        private static readonly TimeSpan MatchDuration = TimeSpan.FromHours(1);
 
         public async Task<bool> HasConflictAsync(
             int youthCenterActivityId,

@@ -473,6 +473,11 @@ namespace YouthCenterWeb.Migrations
                     b.Property<DateTime?>("CancelledAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("CancelledByUser")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 

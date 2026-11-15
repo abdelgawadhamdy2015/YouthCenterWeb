@@ -48,6 +48,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 ReviewedAt = x.ReviewedAt,
                 ReviewedBy = x.ReviewedBy,
                 CancelledAt = x.CancelledAt,
+                CancelledByUser = x.CancelledByUser,
                 PaymentLockExpiresAt = x.PaymentLockExpiresAt,
                 PaidAt = x.PaidAt,
                 PaymentTransactionId = x.PaymentTransactionId

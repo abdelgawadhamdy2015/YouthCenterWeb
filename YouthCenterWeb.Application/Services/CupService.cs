@@ -1,6 +1,7 @@
 using AutoMapper;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.helper;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.ICupScheduler;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
@@ -25,13 +26,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         private readonly IAvailabilityRepo _availabilityRepo = availabilityRepo;
         private readonly IMapper _mapper = mapper;
 
-        private static readonly TimeZoneInfo CairoTz = ResolveCairoTz();
 
-        private static TimeZoneInfo ResolveCairoTz()
-        {
-            try { return TimeZoneInfo.FindSystemTimeZoneById("Africa/Cairo"); }
-            catch { return TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"); }
-        }
 
         // ─────────────────────────────────────────────────────────────────────
         // AUTHORIZATION HELPERS
@@ -951,7 +946,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             await RequireAdminOfCup(cup, callerRole, callerYouthCenterId);
 
             // Flutter بيبعت وقت محلي (القاهرة) بدون Z، فنقارن بتوقيت القاهرة
-            var nowCairo = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CairoTz);
+            var nowCairo = CairoClock.Now;
             if (scheduledAt < nowCairo)
                 throw new BusinessException(
                     messageAr: "لا يمكن أن يكون موعد المباراة في الماضي.",

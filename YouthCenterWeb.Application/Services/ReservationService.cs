@@ -4,6 +4,7 @@ using YouthCenterWeb.Data.DTOs;
 using YouthCenterWeb.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.helper;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
@@ -25,13 +26,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         // الدفع الإلكتروني: يتحكم فيه appsettings → Payments:Enabled
         private bool PaymentsEnabled => config.GetValue<bool>("Payments:Enabled");
 
-        private static readonly TimeZoneInfo CairoTz = ResolveCairoTz();
-
-        private static TimeZoneInfo ResolveCairoTz()
-        {
-            try { return TimeZoneInfo.FindSystemTimeZoneById("Africa/Cairo"); }
-            catch { return TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"); }
-        }
 
         private static int ToCents(decimal price) =>
             checked((int)Math.Round(price * 100m, MidpointRounding.AwayFromZero));
@@ -110,7 +104,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 ?? throw new NotFoundException(
                     messageAr: Messages.Data.NoDataAr,
                     messageEn: Messages.Data.NoDataAr);
-
+            await repo.ExpireStaleLocksAsync();   // يفك الـ unique index فوراً
             if (role == UserRole.Admin && activity.YouthCenterId != adminCenterId)
                 throw new ForbiddenException("Activity does not belong to your center");
 
@@ -233,7 +227,6 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         public async Task<ReservationDto?> CancelAsync(int id, int userId)
         {
             var r = await repo.GetByIdWithRelationsAsync(id);
-
             // نفس الرد للغير موجود وللغير تابع للمستخدم
             if (r is null || r.UserId != userId)
                 throw new NotFoundException("Reservation", id);
@@ -247,7 +240,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageEn: "This reservation cannot be cancelled.");
             }
 
-            var nowCairo = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CairoTz);
+            var nowCairo = CairoClock.Now;
             var start = r.Date.Date + r.StartTime.ToTimeSpan();
 
             if (start <= nowCairo)
@@ -269,7 +262,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             r.Status = ReservationStatus.Cancelled;
             r.CancelledAt = DateTime.UtcNow;
             r.PaymentLockExpiresAt = null;
-            r.RejectionReason = "Cancelled by user";
+            r.CancelledByUser = true;
             r.RefundPending = wasPaid
                               && r.PaidAt != null
                               && r.PaymentTransactionId != "MANUAL";
@@ -347,17 +340,42 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             if (reservation.Status != ReservationStatus.Pending)
                 throw new BusinessException("Only Pending reservations can be accepted.");
+            await repo.ExpireStaleLocksAsync();
+
+            var conflict = await availabilityRepo.HasConflictAsync(
+                reservation.YouthCenterActivityId,
+                reservation.Date,
+                reservation.StartTime,
+                reservation.EndTime,
+                excludeReservationId: reservation.Id);
+
+            if (conflict)
+                throw new BusinessException(
+                    messageAr: "تعذر التأكيد: الموعد أصبح محجوزاً أو مخصصاً لمباراة. ارفض هذا الطلب.",
+                    messageEn: "Cannot accept: the slot is no longer available. Please reject this request.");
 
             reservation.Status = ReservationStatus.Confirmed;
             reservation.ReviewedBy = reviewedBy;
             reservation.ReviewedAt = DateTime.UtcNow;
 
-            repo.Update(reservation);
-            await repo.SaveChangesAsync();
+            try
+            {
+                repo.Update(reservation);
+                await repo.SaveChangesAsync();
+                await NotifyUserAsync(reservation,
+              "تم تأكيد حجزك",
+              $"تم تأكيد حجزك بتاريخ {reservation.Date:yyyy-MM-dd}.");
+            }
+            catch (DbUpdateException)
+            {
+                // الـ unique index هو خط الدفاع الأخير ضد التسابق
+                throw new BusinessException(
+                    "تم حجز هذا الموعد للتو.",
+                    "This time slot was just taken.");
+            }
 
-            await NotifyUserAsync(reservation,
-                "تم تأكيد حجزك",
-                $"تم تأكيد حجزك بتاريخ {reservation.Date:yyyy-MM-dd}.");
+
+
         }
 
         public async Task RejectAsync(
@@ -548,7 +566,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 ?? throw new NotFoundException(
                     messageAr: Messages.Data.NoDataAr,
                     messageEn: Messages.Data.NoDataAr);
-
+            await repo.ExpireStaleLocksAsync();
             dto.UserId = userId;
 
             var conflict = await availabilityRepo.HasConflictAsync(

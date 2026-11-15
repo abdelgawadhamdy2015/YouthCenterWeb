@@ -1,3 +1,4 @@
+using YouthCenterWeb.YouthCenterWeb.Application.Common.helper;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
@@ -57,8 +58,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
         private async Task<DashboardStatsDto> GetWeeklyStatsAsync(FilteredReservationDto filter)
         {
-            filter.DateFrom = DateTime.Now;
-            filter.DateTo = DateTime.Now.AddDays(7);
+            filter.DateFrom = CairoClock.Today;
+            filter.DateTo = CairoClock.Today.AddDays(7);
             filter.Status = null;
 
             var total = await reservationRepo.GetCount(filter);

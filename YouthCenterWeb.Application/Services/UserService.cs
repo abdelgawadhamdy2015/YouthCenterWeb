@@ -53,8 +53,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             user.Name = dto.Name;
             user.Mobile = dto.Mobile;
-            user.ImageUrl = dto.ImageUrl;
-            user.Bio = dto.Bio;
+            if (dto.ImageUrl != null) user.ImageUrl = dto.ImageUrl;
+            if (dto.Bio != null) user.Bio = dto.Bio;
+            if (dto.FavActivityId.HasValue) user.ActivityId = dto.FavActivityId;
             user.ActivityId = dto.FavActivityId;
             userRepository.Update(user);
             await userRepository.SaveChangesAsync();

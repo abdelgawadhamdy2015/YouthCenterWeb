@@ -45,6 +45,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
 
         // ── جديد ──
         public DateTime? CancelledAt { get; set; }
+        public bool CancelledByUser { get; set; }
         public bool RefundPending { get; set; }
 
         [NotMapped]

@@ -13,7 +13,6 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
 {
     private readonly AppDbContext _context = context;
 
-    private static readonly TimeSpan MatchDuration = TimeSpan.FromHours(1);
 
     private IQueryable<Reservation> WithRelations() =>
         _context.Reservations
@@ -117,16 +116,13 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
     public async Task ExpireStaleLocksAsync()
     {
         var now = DateTime.UtcNow;
-        var stale = await _context.Reservations
+        await _context.Reservations
             .Where(x => x.Status == ReservationStatus.AwaitingPayment &&
                         x.PaymentLockExpiresAt <= now)
-            .ToListAsync();
-
-        foreach (var r in stale)
-            r.Status = ReservationStatus.Cancelled;
-
-        if (stale.Count > 0)
-            await _context.SaveChangesAsync();
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Status, ReservationStatus.Cancelled)
+                .SetProperty(x => x.CancelledAt, now)
+                .SetProperty(x => x.PaymentLockExpiresAt, (DateTime?)null));
     }
 
     // ── statistics ────────────────────────────────────────────────────────────
@@ -223,17 +219,17 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             var targetDate = dto.Date.Date;
 
             var matchSlots = await _context.CupMatches
-    .Where(m => m.Cup.YouthCenterActivityId == dto.YouthCenterActivityId
-             && m.ScheduledAt != null
-             && m.ScheduledAt.Value.Date == targetDate
-             && m.Status != CupMatchStatus.Completed)
-    .Select(m => new { m.ScheduledAt, m.Cup.MatchDurationMinutes })
-    .ToListAsync();
+     .Where(m => m.Cup.YouthCenterActivityId == dto.YouthCenterActivityId
+              && m.ScheduledAt != null
+              && m.ScheduledAt.Value.Date == targetDate
+              && m.Status != CupMatchStatus.Completed)
+     .Select(m => new { m.ScheduledAt, Minutes = m.Cup.MatchDurationMinutes + m.Cup.HalftimeMinutes })
+     .ToListAsync();
 
             foreach (var m in matchSlots)
             {
                 var s = m.ScheduledAt!.Value;
-                var e = s.AddMinutes(m.MatchDurationMinutes);
+                var e = s.AddMinutes(m.Minutes);
                 for (var h = new DateTime(s.Year, s.Month, s.Day, s.Hour, 0, 0); h < e; h = h.AddHours(1))
                     hourCounts[h.Hour] = hourCounts.GetValueOrDefault(h.Hour) + 1;
             }
