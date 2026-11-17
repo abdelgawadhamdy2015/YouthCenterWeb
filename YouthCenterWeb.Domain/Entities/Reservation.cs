@@ -43,11 +43,13 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public DateTime? PaymentLockExpiresAt { get; set; }
         public DateTime? PaidAt { get; set; }
 
-        // ── جديد ──
         public DateTime? CancelledAt { get; set; }
         public bool CancelledByUser { get; set; }
         public bool RefundPending { get; set; }
-
+        public DateTime? RefundedAt { get; set; }
+        public int? RefundedBy { get; set; }
+        public string? RefundReference { get; set; }
+        public DateTime? ReminderSentAt { get; set; }
         [NotMapped]
         public decimal DurationHours
         {

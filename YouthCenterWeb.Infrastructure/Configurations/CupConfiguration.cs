@@ -154,7 +154,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
             builder.Property(t => t.Losses).HasDefaultValue(0);
             builder.Property(t => t.GoalsFor).HasDefaultValue(0);
             builder.Property(t => t.GoalsAgainst).HasDefaultValue(0);
-
+            builder.Property(t => t.FairPlayPoints).HasDefaultValue(0);
             // Prevent duplicate requests: one active registration per cup per captain
             builder.HasIndex(t => new { t.CupId, t.CaptainUserId })
      .IsUnique()

@@ -42,57 +42,33 @@ public interface ICupRepo
 
     Task<CupTeam?> GetTeamByIdAsync(int teamId);
 
-    /// <summary>
-    /// Checks if a user already has a Pending or Accepted registration
-    /// for this cup. Used to prevent duplicate requests.
-    /// </summary>
+
     Task<CupTeam?> GetTeamByCupAndUserAsync(int cupId, int userId);
 
-    /// <summary>All teams for a cup regardless of status.</summary>
     Task<IEnumerable<CupTeam>> GetTeamsByCupAsync(int cupId);
 
-    /// <summary>Only Pending teams — shown to admin in the requests list.</summary>
     Task<IEnumerable<CupTeam>> GetPendingTeamsByCupAsync(int cupId);
 
-    /// <summary>Only Accepted teams — used for group draw and standings.</summary>
     Task<IEnumerable<CupTeam>> GetAcceptedTeamsByCupAsync(int cupId);
 
     Task<CupTeam> CreateTeamAsync(CupTeam team);
 
     Task<CupTeam> UpdateTeamAsync(CupTeam team);
 
-    /// <summary>
-    /// Accepts a join request:
-    ///   - Sets CupTeam.Status = Accepted, ReviewedAt = now
-    ///   - Increments Cup.CurrentTeamCount
-    /// Returns updated Cup so service can check if full.
-    /// </summary>
+
     Task<Cup> AcceptTeamAndIncrementCountAsync(int teamId);
 
-    /// <summary>
-    /// Rejects a join request:
-    ///   - Sets CupTeam.Status = Rejected, ReviewedAt = now
-    /// </summary>
+
     Task RejectTeamAsync(int teamId);
 
-    /// <summary>
-    /// Assigns a group to each accepted team after the random draw.
-    /// Bulk update for performance.
-    /// </summary>
-    Task AssignGroupsToTeamsAsync(IEnumerable<(int TeamId, int GroupId)> assignments);
 
-    /// <summary>
-    /// Updates standings for a team after a match result is entered.
-    /// Increments Points / Wins|Draws|Losses / Goals atomically.
-    /// </summary>
-    Task UpdateTeamStandingsAsync(
-        int teamId,
-        int pointsDelta,
-        int winsDelta,
-        int drawsDelta,
-        int lossesDelta,
-        int goalsForDelta,
-        int goalsAgainstDelta);
+    Task AssignGroupsToTeamsAsync(IEnumerable<(int TeamId, int GroupId)> assignments);
+    Task UpdateTeamStandingsAsync(int teamId, int pointsDelta, int winsDelta, int drawsDelta,
+       int lossesDelta, int goalsForDelta, int goalsAgainstDelta, int fairPlayDelta = 0);
+
+    Task<CupMatch> EnterMatchResultAsync(int matchId, int scoreA, int scoreB,
+        int? penaltyScoreA = null, int? penaltyScoreB = null, int? winnerId = null,
+        int? yellowA = null, int? yellowB = null, int? redA = null, int? redB = null);
 
     // ─── CupMatch ─────────────────────────────────────────────────────────────
 
@@ -120,31 +96,10 @@ public interface ICupRepo
 
     Task<CupMatch> UpdateMatchAsync(CupMatch match);
 
-    /// <summary>
-    /// Enters a match result:
-    ///   - Sets ScoreA, ScoreB, WinnerId, Status = Completed
-    /// Caller (service) handles standings update and bracket advancement.
-    /// </summary>
-    Task<CupMatch> EnterMatchResultAsync(
-        int matchId,
-        int scoreA,
-        int scoreB,
-        int? penaltyScoreA = null,
-        int? penaltyScoreB = null,
-        int? winnerId = null);
 
-    /// <summary>
-    /// Advances the winner into the next knockout slot.
-    /// Finds the next match by (Round+1, ceil(MatchNumber/2))
-    /// and sets TeamAId or TeamBId depending on whether MatchNumber is odd/even.
-    /// </summary>
     Task AdvanceWinnerToNextRoundAsync(int cupId, int currentRound, int currentMatchNumber, int winnerTeamId);
     Task AssignThirdPlaceParticipantAsync(int cupId, int teamId);
 
-    /// <summary>
-    /// Seeds knockout matches after group stage ends.
-    /// Sets TeamAId/TeamBId based on group standings (A1 vs B2, B1 vs A2 etc.)
-    /// </summary>
     Task SeedKnockoutMatchesAsync(int cupId);
     Task<int?> GetCupIdByTeamIdAsync(int teamId);
     Task UpdateMatchesAsync(IEnumerable<CupMatch> matches);
@@ -152,4 +107,6 @@ public interface ICupRepo
     Task<Cup?> GetByIdForUpdateAsync(int cupId);
     Task DeleteTeamAsync(int teamId);
     Task ExecuteInTransactionAsync(Func<Task> operation);
+
+
 }

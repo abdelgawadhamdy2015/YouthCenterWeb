@@ -39,5 +39,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
         public int GoalDifference { get; set; }
 
         public int PlayedMatches { get; set; }
+
+        public int FairPlayPoints { get; set; }
     }
 }

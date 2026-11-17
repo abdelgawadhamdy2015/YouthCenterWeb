@@ -60,7 +60,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public int? PenaltyScoreB { get; set; }
         public bool IsManuallyScheduled { get; set; }
         public DateTime? ScheduledAt { get; set; }
-
+        public int? YellowCardsA { get; set; }
+        public int? YellowCardsB { get; set; }
+        public int? RedCardsA { get; set; }
+        public int? RedCardsB { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

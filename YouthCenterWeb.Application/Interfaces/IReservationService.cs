@@ -23,9 +23,13 @@ public interface IReservationService
     Task<ReservationDto?> CancelAsync(int id, int userId);
 
     Task<List<PeakHourDto>?> GetAvailHoursAsync(AvailBookingDto dto);
+    Task<int> CountReservationsAsync(FilteredReservationDto? filter);
 
     Task<ReservationDto?> LockForPaymentAsync(CreateReservationDto dto, int userId);
     Task<ReservationDto?> PayAgainAsync(int reservationId, int userId);
     Task<ReservationDto?> ConfirmPaymentAsync(int reservationId, ConfirmPaymentDto dto);
     Task FailPaymentAsync(int reservationId, string reason);
+    Task<List<ReservationDto>> GetRefundsAsync(bool pendingOnly, UserRole role, int? adminCenterId);
+    Task<ReservationDto?> MarkRefundedAsync(int id, string reference, int adminId, UserRole role, int? adminCenterId);
+
 }

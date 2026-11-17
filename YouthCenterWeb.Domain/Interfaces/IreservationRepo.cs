@@ -20,6 +20,11 @@ public interface IReservationRepo
     Task<List<PeakHourDto>> GetPeakBookingHoursAsync(FilteredReservationDto? dto);
     Task<List<PeakHourDto>> GetAvailBookingHoursAsync(AvailBookingDto? dto);
 
-    // جديد
+    Task<List<Reservation>> GetRefundsAsync(int? youthCenterId, bool pendingOnly);
+
     Task<List<int>> GetCenterAdminIdsAsync(int youthCenterId);
+    Task<int> GetFilteredCountAsync(FilteredReservationDto? dto);
+
+    Task<Dictionary<ReservationStatus, int>> GetStatusCountsAsync(FilteredReservationDto? dto);
+    Task<List<ActivityBreakdownDto>> GetActivityBreakdownAsync(FilteredReservationDto? dto);
 }

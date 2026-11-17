@@ -18,8 +18,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Interfaces
         Task RegisterDeviceAsync(int userId, string token, string platform);
         Task UnregisterDeviceAsync(int userId);
 
-        Task<List<NotificationDto>> GetMineAsync(int userId, int take = 50);
         Task<int> GetUnreadCountAsync(int userId);
+
+        Task<List<NotificationDto>> GetMineAsync(int userId, int pageNumber = 1, int pageSize = 30);
+        Task<int> GetTotalAsync(int userId);
         Task MarkReadAsync(int userId, int id);
         Task MarkAllReadAsync(int userId);
         Task DeleteAsync(int userId, int id);

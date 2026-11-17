@@ -36,7 +36,9 @@ namespace YouthCenterWeb.DTOs
 
         public DateTime? PaymentLockExpiresAt { get; set; }
         public DateTime? PaidAt { get; set; }
+        public DateTime? RefundedAt { get; set; }
 
+        public string? RefundReference { get; set; }
         public DateTime? CancelledAt { get; set; }
         public bool CancelledByUser { get; set; }
         public bool RefundPending { get; set; }

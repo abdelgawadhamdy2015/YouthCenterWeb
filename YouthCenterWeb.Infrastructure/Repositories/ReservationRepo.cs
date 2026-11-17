@@ -23,47 +23,6 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
                 .ThenInclude(x => x!.Activity);
 
     // ── queries ───────────────────────────────────────────────────────────────
-    public Task<List<Reservation>> GetFiltersReservationsAsync(FilteredReservationDto? dto)
-    {
-        var query = WithRelations().AsQueryable();
-
-        if (dto?.UserId != null)
-            query = query.Where(x => x.UserId == dto.UserId);
-
-        if (dto?.YouthCenterId != null)
-            query = query.Where(x =>
-                x.YouthCenterActivity != null &&
-                x.YouthCenterActivity.YouthCenterId == dto.YouthCenterId);
-
-        if (dto?.ActivityId != null)
-            query = query.Where(x =>
-                x.YouthCenterActivity != null &&
-                x.YouthCenterActivity.ActivityId == dto.ActivityId);
-
-        if (dto?.Status != null)
-            query = query.Where(x => x.Status == dto.Status);
-
-        if (dto?.DateFrom != null)
-            query = query.Where(x => x.Date >= dto.DateFrom);
-
-        if (dto?.DateTo != null)
-            query = query.Where(x => x.Date <= dto.DateTo);
-
-        if (dto?.StartTime != null)
-            query = query.Where(x => x.StartTime >= dto.StartTime);
-
-        if (dto?.EndTime != null)
-            query = query.Where(x => x.EndTime <= dto.EndTime);
-
-        // ترتيب ثابت قبل الـ Skip/Take (من غيره الترقيم غير مضمون)
-        query = query.OrderByDescending(x => x.Date).ThenByDescending(x => x.StartTime);
-
-        if (dto?.PageNumber != null && dto.PageSize != null)
-            query = query.Skip((int)((dto.PageNumber - 1) * dto.PageSize))
-                         .Take((int)dto.PageSize);
-
-        return query.ToListAsync();
-    }
 
     public Task<Reservation?> GetByIdWithRelationsAsync(int id) =>
         WithRelations().FirstOrDefaultAsync(x => x.Id == id);
@@ -178,9 +137,7 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             .ToListAsync();
     }
 
-    /// <summary>
-    /// عدد الحجوزات لكل ساعة (حجوزات + مباريات مجدولة). Pending بيقفل الساعة.
-    /// </summary>
+
     public async Task<List<PeakHourDto>> GetAvailBookingHoursAsync(AvailBookingDto? dto)
     {
         var query = WithRelations().AsQueryable();
@@ -243,4 +200,74 @@ public class ReservationRepo(AppDbContext context) : IReservationRepo
             })
             .ToList();
     }
+
+
+    public Task<List<Reservation>> GetRefundsAsync(int? youthCenterId, bool pendingOnly)
+    {
+        var q = WithRelations().Where(r => r.RefundPending || r.RefundedAt != null);
+        if (youthCenterId != null)
+            q = q.Where(r => r.YouthCenterActivity!.YouthCenterId == youthCenterId);
+        if (pendingOnly)
+            q = q.Where(r => r.RefundPending);
+        return q.OrderByDescending(r => r.CancelledAt ?? r.PaidAt).Take(200).ToListAsync();
+    }
+
+    private IQueryable<Reservation> Scoped(FilteredReservationDto? dto)
+    {
+        var q = _context.Reservations.AsNoTracking().AsQueryable();
+        if (dto?.YouthCenterId != null)
+            q = q.Where(x => x.YouthCenterActivity!.YouthCenterId == dto.YouthCenterId);
+        if (dto?.UserId != null)
+            q = q.Where(x => x.UserId == dto.UserId);
+        if (dto?.DateFrom != null) q = q.Where(x => x.Date >= dto.DateFrom);
+        if (dto?.DateTo != null) q = q.Where(x => x.Date <= dto.DateTo);
+        return q;
+    }
+
+    public Task<Dictionary<ReservationStatus, int>> GetStatusCountsAsync(FilteredReservationDto? dto) =>
+        Scoped(dto)
+            .GroupBy(x => x.Status)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+    public Task<List<ActivityBreakdownDto>> GetActivityBreakdownAsync(FilteredReservationDto? dto) =>
+        Scoped(dto)
+            .GroupBy(x => new { x.YouthCenterActivity!.ActivityId, x.YouthCenterActivity.Activity.NameAr })
+            .Select(g => new ActivityBreakdownDto { ActivityName = g.Key.NameAr, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+
+    private static IQueryable<Reservation> ApplyFilters(IQueryable<Reservation> query, FilteredReservationDto? dto)
+    {
+        if (dto?.UserId != null) query = query.Where(x => x.UserId == dto.UserId);
+        if (dto?.YouthCenterId != null) query = query.Where(x => x.YouthCenterActivity != null &&
+                                            x.YouthCenterActivity.YouthCenterId == dto.YouthCenterId);
+        if (dto?.ActivityId != null) query = query.Where(x => x.YouthCenterActivity != null &&
+                                            x.YouthCenterActivity.ActivityId == dto.ActivityId);
+        if (dto?.Status != null) query = query.Where(x => x.Status == dto.Status);
+        if (dto?.DateFrom != null) query = query.Where(x => x.Date >= dto.DateFrom);
+        if (dto?.DateTo != null) query = query.Where(x => x.Date <= dto.DateTo);
+        if (dto?.StartTime != null) query = query.Where(x => x.StartTime >= dto.StartTime);
+        if (dto?.EndTime != null) query = query.Where(x => x.EndTime <= dto.EndTime);
+        return query;
+    }
+
+    public Task<List<Reservation>> GetFiltersReservationsAsync(FilteredReservationDto? dto)
+    {
+        var query = ApplyFilters(WithRelations(), dto)
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.StartTime)
+            .AsQueryable();
+
+        if (dto?.PageNumber != null && dto.PageSize != null)
+        {
+            var size = Math.Clamp(dto.PageSize.Value, 1, 100);
+            var page = Math.Max(1, dto.PageNumber.Value);
+            query = query.Skip((page - 1) * size).Take(size);
+        }
+        return query.ToListAsync();
+    }
+
+    public Task<int> GetFilteredCountAsync(FilteredReservationDto? dto) =>
+        ApplyFilters(_context.Reservations.AsNoTracking(), dto).CountAsync();
 }

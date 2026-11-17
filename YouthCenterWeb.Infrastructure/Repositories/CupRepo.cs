@@ -1,7 +1,9 @@
 using System.Data;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Helpers;
 using YouthCenterWeb.YouthCenterWeb.Domain.Entities;
 using YouthCenterWeb.YouthCenterWeb.Domain.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
@@ -258,14 +260,8 @@ public class CupRepo(AppDbContext context) : ICupRepo
         _context.CupTeams.Remove(team);
         await _context.SaveChangesAsync();
     }
-    public async Task UpdateTeamStandingsAsync(
-        int teamId,
-        int pointsDelta,
-        int winsDelta,
-        int drawsDelta,
-        int lossesDelta,
-        int goalsForDelta,
-        int goalsAgainstDelta)
+    public async Task UpdateTeamStandingsAsync(int teamId, int pointsDelta, int winsDelta, int drawsDelta,
+       int lossesDelta, int goalsForDelta, int goalsAgainstDelta, int fairPlayDelta = 0)
     {
         var team = await _context.CupTeams
             .FirstOrDefaultAsync(t => t.Id == teamId)
@@ -277,7 +273,7 @@ public class CupRepo(AppDbContext context) : ICupRepo
         team.Losses += lossesDelta;
         team.GoalsFor += goalsForDelta;
         team.GoalsAgainst += goalsAgainstDelta;
-
+        team.FairPlayPoints += fairPlayDelta;
         await _context.SaveChangesAsync();
     }
 
@@ -363,13 +359,9 @@ public class CupRepo(AppDbContext context) : ICupRepo
         return match;
     }
 
-    public async Task<CupMatch> EnterMatchResultAsync(
-     int matchId,
-     int scoreA,
-     int scoreB,
-     int? penaltyScoreA,
-     int? penaltyScoreB,
-     int? winnerId)
+    public async Task<CupMatch> EnterMatchResultAsync(int matchId, int scoreA, int scoreB,
+        int? penaltyScoreA = null, int? penaltyScoreB = null, int? winnerId = null,
+        int? yellowA = null, int? yellowB = null, int? redA = null, int? redB = null)
     {
         var match = await _context.CupMatches
             .FirstOrDefaultAsync(m => m.Id == matchId)
@@ -381,7 +373,10 @@ public class CupRepo(AppDbContext context) : ICupRepo
         match.PenaltyScoreA = penaltyScoreA;
         match.PenaltyScoreB = penaltyScoreB;
         match.Status = CupMatchStatus.Completed;
-
+        match.YellowCardsA = yellowA;
+        match.YellowCardsB = yellowB;
+        match.RedCardsA = redA;
+        match.RedCardsB = redB;
         await _context.SaveChangesAsync();
 
         return match;
@@ -421,17 +416,15 @@ public class CupRepo(AppDbContext context) : ICupRepo
 
         var groups = await _context.CupGroups
             .Include(g => g.Teams)
+            .Include(g => g.Matches)
             .Where(g => g.CupId == cupId)
             .OrderBy(g => g.GroupNumber)
             .ToListAsync();
 
-        // ترتيب كل مجموعة: نقاط ← فارق الأهداف ← الأهداف المسجلة ← Id (ثابت)
-        var ranked = groups.Select(g => g.Teams
-            .OrderByDescending(t => t.Points)
-            .ThenByDescending(t => t.GoalsFor - t.GoalsAgainst)
-            .ThenByDescending(t => t.GoalsFor)
-            .ThenBy(t => t.Id)
-            .ToList()).ToList();
+        var ranked = groups.Select(g => StandingsRanker.Rank(g.Teams, g.Matches)).ToList();
+
+
+
 
         int advancing = cup.TeamsAdvancingPerGroup;
         var pairs = new List<(int A, int B)>();
@@ -555,4 +548,6 @@ public class CupRepo(AppDbContext context) : ICupRepo
         _context.CupMatches.UpdateRange(matches);
         await _context.SaveChangesAsync();
     }
+
+
 }

@@ -781,5 +781,42 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             repo.Update(reservation);
             await repo.SaveChangesAsync();
         }
+
+        public async Task<List<ReservationDto>> GetRefundsAsync(bool pendingOnly, UserRole role, int? adminCenterId)
+        {
+            var centerScope = role == UserRole.Admin ? adminCenterId : null;
+            var list = await repo.GetRefundsAsync(centerScope, pendingOnly);
+            return list.Select(mapper.ToDto).ToList();
+        }
+
+        public async Task<ReservationDto?> MarkRefundedAsync(
+            int id, string reference, int adminId, UserRole role, int? adminCenterId)
+        {
+            var r = await repo.GetByIdWithRelationsAsync(id)
+                ?? throw new NotFoundException("Reservation", id);
+
+            if (role == UserRole.Admin && r.YouthCenterActivity?.YouthCenterId != adminCenterId)
+                throw new ForbiddenException();
+
+            if (!r.RefundPending)
+                throw new BusinessException("لا يوجد استرداد معلق لهذا الحجز.",
+                                            "There is no pending refund for this reservation.");
+
+            r.RefundPending = false;
+            r.RefundedAt = DateTime.UtcNow;
+            r.RefundedBy = adminId;
+            r.RefundReference = reference.Trim();
+
+            repo.Update(r);
+            await repo.SaveChangesAsync();
+
+            await NotifyUserAsync(r, "تم رد المبلغ",
+                $"تم رد مبلغ حجزك رقم {r.Id}. المرجع: {r.RefundReference}");
+
+            return mapper.ToDto(r);
+        }
+
+        public Task<int> CountReservationsAsync(FilteredReservationDto? filter)
+        => repo.GetFilteredCountAsync(filter);
     }
 }

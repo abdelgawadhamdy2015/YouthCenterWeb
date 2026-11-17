@@ -2,6 +2,7 @@ using AutoMapper;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Enums;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.Exeptions;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.helper;
+using YouthCenterWeb.YouthCenterWeb.Application.Common.Helpers;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.ICupScheduler;
 using YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups;
 using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
@@ -160,7 +161,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                         messageAr: "لم يتم العثور على البطولة المطلوبة.",
                         messageEn: "Cup not found.");
 
-            return _mapper.Map<CupDetailDto>(cup);
+            var dto = _mapper.Map<CupDetailDto>(cup);
+            foreach (var g in cup.Groups)
+            {
+                var order = StandingsRanker.Rank(g.Teams, g.Matches)
+                    .Select((t, i) => (t.Id, i)).ToDictionary(x => x.Id, x => x.i);
+                var gd = dto.Groups.First(x => x.Id == g.Id);
+                gd.Teams = gd.Teams.OrderBy(t => order[t.Id]).ToList();
+            }
+            return dto;
         }
 
         public async Task<IEnumerable<CupDto>> GetAllAsync()
@@ -200,10 +209,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageAr: "لم يتم العثور على المجموعة المطلوبة.",
                     messageEn: "Group not found.");
 
-            var standings = group.Teams
-                .OrderByDescending(t => t.Points)
-                .ThenByDescending(t => t.GoalsFor - t.GoalsAgainst);
 
+            var standings = StandingsRanker.Rank(group.Teams, group.Matches);
             return _mapper.Map<IEnumerable<CupStandingDto>>(standings);
         }
 
@@ -856,7 +863,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     matchId: matchId,
                     scoreA: dto.ScoreA,
                     scoreB: dto.ScoreB,
-                    winnerId: winnerId);
+                    penaltyScoreA: dto.PenaltyScoreA,
+                    penaltyScoreB: dto.PenaltyScoreB,
+                    winnerId: winnerId, yellowA: dto.YellowCardsA, yellowB: dto.YellowCardsB, redA: dto.RedCardsA, redB: dto.RedCardsB);
                 await UpdateStandings(match, dto);
 
                 var allDone = await _cupRepo.AllGroupMatchesCompletedAsync(match.CupId);
@@ -896,12 +905,12 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
 
                 await _cupRepo.EnterMatchResultAsync(
-                    matchId: matchId,
-                    scoreA: dto.ScoreA,
-                    scoreB: dto.ScoreB,
-                    penaltyScoreA: dto.PenaltyScoreA,
-                    penaltyScoreB: dto.PenaltyScoreB,
-                    winnerId: winnerId);
+                      matchId: matchId,
+                      scoreA: dto.ScoreA,
+                      scoreB: dto.ScoreB,
+                      penaltyScoreA: dto.PenaltyScoreA,
+                      penaltyScoreB: dto.PenaltyScoreB,
+                      winnerId: winnerId, yellowA: dto.YellowCardsA, yellowB: dto.YellowCardsB, redA: dto.RedCardsA, redB: dto.RedCardsB);
 
                 await _cupRepo.AdvanceWinnerToNextRoundAsync(
                     match.CupId, match.Round, match.MatchNumber, winnerId!.Value);
@@ -1138,27 +1147,18 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
         private async Task UpdateStandings(CupMatch match, EnterMatchResultDto dto)
         {
-            if (dto.ScoreA > dto.ScoreB)
-            {
-                await _cupRepo.UpdateTeamStandingsAsync(
-                    match.TeamAId!.Value, 3, 1, 0, 0, dto.ScoreA, dto.ScoreB);
-                await _cupRepo.UpdateTeamStandingsAsync(
-                    match.TeamBId!.Value, 0, 0, 0, 1, dto.ScoreB, dto.ScoreA);
-            }
-            else if (dto.ScoreB > dto.ScoreA)
-            {
-                await _cupRepo.UpdateTeamStandingsAsync(
-                    match.TeamBId!.Value, 3, 1, 0, 0, dto.ScoreB, dto.ScoreA);
-                await _cupRepo.UpdateTeamStandingsAsync(
-                    match.TeamAId!.Value, 0, 0, 0, 1, dto.ScoreA, dto.ScoreB);
-            }
-            else
-            {
-                await _cupRepo.UpdateTeamStandingsAsync(
-                    match.TeamAId!.Value, 1, 0, 1, 0, dto.ScoreA, dto.ScoreB);
-                await _cupRepo.UpdateTeamStandingsAsync(
-                    match.TeamBId!.Value, 1, 0, 1, 0, dto.ScoreB, dto.ScoreA);
-            }
+            int fpA = (dto.YellowCardsA ?? 0) + 3 * (dto.RedCardsA ?? 0);
+            int fpB = (dto.YellowCardsB ?? 0) + 3 * (dto.RedCardsB ?? 0);
+
+            var (pA, wA, dA, lA, pB, wB, dB, lB) =
+                dto.ScoreA > dto.ScoreB ? (3, 1, 0, 0, 0, 0, 0, 1) :
+                dto.ScoreB > dto.ScoreA ? (0, 0, 0, 1, 3, 1, 0, 0) :
+                                          (1, 0, 1, 0, 1, 0, 1, 0);
+            // تحقق (بعد فحص الأهداف السالبة)
+            if (new[] { dto.YellowCardsA, dto.YellowCardsB, dto.RedCardsA, dto.RedCardsB }.Any(c => c < 0))
+                throw new BusinessException("عدد الكروت لا يمكن أن يكون سالباً.", "Card counts cannot be negative.");
+            await _cupRepo.UpdateTeamStandingsAsync(match.TeamAId!.Value, pA, wA, dA, lA, dto.ScoreA, dto.ScoreB, fpA);
+            await _cupRepo.UpdateTeamStandingsAsync(match.TeamBId!.Value, pB, wB, dB, lB, dto.ScoreB, dto.ScoreA, fpB);
         }
 
         private async Task GenerateGroupsAsync(int cupId)

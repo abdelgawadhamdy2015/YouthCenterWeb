@@ -9,13 +9,15 @@ public class UserNotificationRepo(AppDbContext db) : IUserNotificationRepo
 
     public Task AddRangeAsync(IEnumerable<UserNotification> items) =>
         db.Notifications.AddRangeAsync(items);
-
-    public Task<List<UserNotification>> GetByUserAsync(int userId, int take) =>
+    public Task<List<UserNotification>> GetByUserAsync(int userId, int skip, int take) =>
         db.Notifications.AsNoTracking()
             .Where(n => n.UserId == userId)
-            .OrderByDescending(n => n.CreatedAt)
-            .Take(take)
+            .OrderByDescending(n => n.CreatedAt).ThenByDescending(n => n.Id)
+            .Skip(skip).Take(take)
             .ToListAsync();
+
+    public Task<int> CountAllAsync(int userId) =>
+        db.Notifications.CountAsync(n => n.UserId == userId);
 
     public Task<int> CountUnreadAsync(int userId) =>
         db.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);

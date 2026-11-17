@@ -50,5 +50,20 @@ namespace YouthCenterWeb.YouthCenterWeb.Api.Controllers
             await service.DeleteAsync(UserId, id);
             return Ok(new BaseResponse<object> { Result = 1 });
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 30)
+        {
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            var data = await service.GetMineAsync(UserId, pageNumber, pageSize);
+            return Ok(new BaseResponse<List<NotificationDto>>
+            {
+                Result = 1,
+                Data = data,
+                DataCount = data.Count,
+                TotalCount = await service.GetTotalAsync(UserId)
+            });
+        }
     }
 }

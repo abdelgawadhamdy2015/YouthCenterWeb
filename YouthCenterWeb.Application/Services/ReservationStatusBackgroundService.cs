@@ -1,12 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using YouthCenterWeb.YouthCenterWeb.Application.Common.helper;
+using YouthCenterWeb.YouthCenterWeb.Application.Interfaces;
 using YouthCenterWeb.YouthCenterWeb.Infrastructure.Data;
 
 namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 {
     public class ReservationStatusBackgroundService(
-        IServiceScopeFactory scopeFactory,
-        ILogger<ReservationStatusBackgroundService> logger) : BackgroundService
+    IServiceScopeFactory scopeFactory,
+    IConfiguration config,
+    ILogger<ReservationStatusBackgroundService> logger) : BackgroundService
     {
         private static readonly TimeSpan Tick = TimeSpan.FromMinutes(1);
         private static readonly TimeSpan RolloverEvery = TimeSpan.FromMinutes(10);
@@ -25,7 +27,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
                     // كل دقيقة
                     await repo.ExpireStaleLocksAsync();
-
+                    await SendRemindersAsync(scope.ServiceProvider, context, ct);
                     // كل 10 دقايق
                     if (DateTime.UtcNow - _lastRolloverUtc >= RolloverEvery)
                     {
@@ -67,6 +69,42 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             }
 
             await context.SaveChangesAsync(ct);
+        }
+
+        private async Task SendRemindersAsync(IServiceProvider sp, AppDbContext ctx, CancellationToken ct)
+        {
+            var lead = TimeSpan.FromMinutes(config.GetValue("Reminders:LeadMinutes", 120));
+            var now = CairoClock.Now;
+
+            var due = await ctx.Reservations
+                .Include(r => r.YouthCenterActivity).ThenInclude(y => y!.Activity)
+                .Include(r => r.YouthCenterActivity).ThenInclude(y => y!.YouthCenter)
+                .Where(r => r.Status == ReservationStatus.Confirmed &&
+                            r.ReminderSentAt == null &&
+                            r.Date >= now.Date && r.Date <= now.Date.AddDays(1))
+                .ToListAsync(ct);
+
+            if (due.Count == 0) return;
+            var notifier = sp.GetRequiredService<INotificationService>();
+
+            foreach (var r in due)
+            {
+                var start = r.Date.Date + r.StartTime.ToTimeSpan();
+                if (start <= now || start - now > lead) continue;
+
+                // نعلّم قبل الإرسال: لو الإرسال فشل ما نكرّرش كل دقيقة
+                r.ReminderSentAt = DateTime.UtcNow;
+                await ctx.SaveChangesAsync(ct);
+
+                var center = r.YouthCenterActivity?.YouthCenter?.NameAr ?? "";
+                var activity = r.YouthCenterActivity?.Activity?.NameAr ?? "";
+                await notifier.SendToUserAsync(
+                    userId: r.UserId,
+                    title: "تذكير بحجزك",
+                    body: $"حجزك في {center} ({activity}) يبدأ الساعة {r.StartTime:HH:mm}.",
+                    type: "reservation",
+                    targetId: r.Id);
+            }
         }
     }
 }

@@ -51,9 +51,9 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Mappers
                 CancelledByUser = x.CancelledByUser,
                 PaymentLockExpiresAt = x.PaymentLockExpiresAt,
                 PaidAt = x.PaidAt,
-                PaymentTransactionId = x.PaymentTransactionId
-
-
+                PaymentTransactionId = x.PaymentTransactionId,
+                RefundedAt = x.RefundedAt,
+                RefundReference = x.RefundReference
 
             };
             return reservationDto;

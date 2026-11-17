@@ -114,20 +114,21 @@ public class NotificationService(
     }
 
     // ── قراءة ────────────────────────────────────────────────────────────────
-    public async Task<List<NotificationDto>> GetMineAsync(int userId, int take = 50) =>
-        (await notificationRepo.GetByUserAsync(userId, take))
-            .Select(n => new NotificationDto
-            {
-                Id = n.Id,
-                Title = n.Title,
-                Body = n.Body,
-                Type = n.Type,
-                TargetId = n.TargetId,
-                IsRead = n.IsRead,
-                // EF بيرجّع Kind=Unspecified؛ نحدده UTC عشان الـ App يحوّله لتوقيت الجهاز صح
-                CreatedAt = DateTime.SpecifyKind(n.CreatedAt, DateTimeKind.Utc)
-            })
-            .ToList();
+    public async Task<List<NotificationDto>> GetMineAsync(int userId, int pageNumber = 1, int pageSize = 30) =>
+     (await notificationRepo.GetByUserAsync(userId, (pageNumber - 1) * pageSize, pageSize))
+         .Select(n => new NotificationDto
+         {
+             Id = n.Id,
+             Title = n.Title,
+             Body = n.Body,
+             Type = n.Type,
+             TargetId = n.TargetId,
+             IsRead = n.IsRead,
+             CreatedAt = DateTime.SpecifyKind(n.CreatedAt, DateTimeKind.Utc)
+         })
+             .ToList();
+
+    public Task<int> GetTotalAsync(int userId) => notificationRepo.CountAllAsync(userId);
 
     public Task<int> GetUnreadCountAsync(int userId) =>
         notificationRepo.CountUnreadAsync(userId);

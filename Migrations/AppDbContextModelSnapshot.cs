@@ -230,6 +230,12 @@ namespace YouthCenterWeb.Migrations
                     b.Property<int?>("PenaltyScoreB")
                         .HasColumnType("int");
 
+                    b.Property<int?>("RedCardsA")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RedCardsB")
+                        .HasColumnType("int");
+
                     b.Property<int>("Round")
                         .HasColumnType("int");
 
@@ -257,6 +263,12 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int");
 
                     b.Property<int?>("WinnerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("YellowCardsA")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("YellowCardsB")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -290,6 +302,11 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("Draws")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("FairPlayPoints")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
@@ -499,8 +516,21 @@ namespace YouthCenterWeb.Migrations
                     b.Property<bool>("RefundPending")
                         .HasColumnType("bit");
 
+                    b.Property<string>("RefundReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("RefundedBy")
+                        .HasColumnType("int");
+
                     b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("datetime2");
