@@ -153,6 +153,11 @@ namespace YouthCenterWeb.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(2);
 
+                    b.Property<int>("WildcardsAdvancing")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("YouthCenterActivityId")
                         .HasColumnType("int");
 
@@ -235,6 +240,9 @@ namespace YouthCenterWeb.Migrations
 
                     b.Property<int?>("RedCardsB")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("Round")
                         .HasColumnType("int");

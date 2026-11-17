@@ -29,7 +29,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Infrastructure.Configurations
             builder.Property(c => c.Status)
                 .IsRequired()
                 .HasConversion<string>();
-
+            builder.Property(c => c.WildcardsAdvancing).IsRequired().HasDefaultValue(0);
             builder.Property(c => c.MaxTeams).IsRequired();
 
             builder.Property(c => c.GroupSize)

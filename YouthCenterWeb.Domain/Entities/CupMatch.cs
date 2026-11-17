@@ -64,6 +64,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         public int? YellowCardsB { get; set; }
         public int? RedCardsA { get; set; }
         public int? RedCardsB { get; set; }
+        public DateTime? ReminderSentAt { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

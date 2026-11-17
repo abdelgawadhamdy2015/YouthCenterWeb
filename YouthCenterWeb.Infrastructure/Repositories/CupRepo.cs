@@ -485,15 +485,9 @@ public class CupRepo(AppDbContext context) : ICupRepo
     public async Task AssignThirdPlaceParticipantAsync(int cupId, int teamId)
     {
         var thirdPlaceMatch = await _context.CupMatches
-            .FirstOrDefaultAsync(m =>
-                m.CupId == cupId &&
-                m.Stage == CupMatchStage.ThirdPlace);
+        .FirstOrDefaultAsync(m => m.CupId == cupId && m.Stage == CupMatchStage.ThirdPlace);
 
-        if (thirdPlaceMatch == null)
-            throw new NotFoundException(
-                messageAr: "لم يتم العثور على مباراة تحديد المركز الثالث لهذه البطولة.",
-                messageEn: "Third-place match was not found for this cup.");
-
+        if (thirdPlaceMatch == null) return;
         if (thirdPlaceMatch.TeamAId == null)
             thirdPlaceMatch.TeamAId = teamId;
         else if (thirdPlaceMatch.TeamBId == null)

@@ -26,6 +26,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         private readonly IYouthCenterActivityRepo _activityRepo = youthCenterActivityRepo;
         private readonly IAvailabilityRepo _availabilityRepo = availabilityRepo;
         private readonly IMapper _mapper = mapper;
+        private const int MaxKnockoutTeams = 32;
 
 
 
@@ -290,11 +291,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             cup.CurrentTeamCount = 0;
             cup.CreatedAt = DateTime.UtcNow;
 
-            ValidateCupStructure(
-                dto.Format,
-                dto.MaxTeams,
-                dto.GroupSize,
-                dto.TeamsAdvancingPerGroup);
+            ValidateCupStructure(dto.Format, dto.MaxTeams, dto.GroupSize,
+     dto.TeamsAdvancingPerGroup, dto.WildcardsAdvancing);
 
             ValidateSchedule(cup);
 
@@ -380,16 +378,14 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     dto.TeamsAdvancingPerGroup ?? cup.TeamsAdvancingPerGroup;
                 var finalFormat = dto.Format ?? cup.Format;
 
-                ValidateCupStructure(
-                    finalFormat,
-                    finalMaxTeams,
-                    finalGroupSize,
-                    finalAdvancing);
-
+                var finalWild = dto.WildcardsAdvancing ?? cup.WildcardsAdvancing;
+                ValidateCupStructure(finalFormat, finalMaxTeams, finalGroupSize, finalAdvancing, finalWild);
                 cup.MaxTeams = finalMaxTeams;
                 cup.GroupSize = finalGroupSize;
                 cup.TeamsAdvancingPerGroup = finalAdvancing;
+                cup.WildcardsAdvancing = finalWild;
                 cup.Format = finalFormat;
+
             }
             else
             {
@@ -398,7 +394,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     (dto.GroupSize.HasValue && dto.GroupSize.Value != cup.GroupSize) ||
                     (dto.TeamsAdvancingPerGroup.HasValue &&
                      dto.TeamsAdvancingPerGroup.Value != cup.TeamsAdvancingPerGroup) ||
-                    (dto.Format.HasValue && dto.Format.Value != cup.Format);
+                    (dto.Format.HasValue && dto.Format.Value != cup.Format) || (dto.WildcardsAdvancing.HasValue && dto.WildcardsAdvancing.Value != cup.WildcardsAdvancing);
 
                 if (structureChanged)
                     throw new BusinessException(
@@ -648,10 +644,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
                 if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
                 {
-                    await GenerateGroupsAsync(updatedCup.Id);
-                    await GenerateGroupMatchesAsync(updatedCup.Id);
-                    updatedCup.Status = CupStatus.GroupStage;
-                    await _cupRepo.UpdateAsync(updatedCup);
+                    await StartCompetitionAsync(updatedCup);
                     filled = true;
                 }
             });
@@ -733,12 +726,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
                 if (updatedCup.CurrentTeamCount == updatedCup.MaxTeams)
                 {
-                    await GenerateGroupsAsync(updatedCup.Id);
-                    await GenerateGroupMatchesAsync(updatedCup.Id);
-
-                    updatedCup.Status = CupStatus.GroupStage;
-                    await _cupRepo.UpdateAsync(updatedCup);
-
+                    await StartCompetitionAsync(updatedCup);
                     cupCompleted = true;
                 }
             });
@@ -1071,19 +1059,17 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 var accepted = (await _cupRepo.GetAcceptedTeamsByCupAsync(cupId)).ToList();
 
                 // يتحقق: القسمة على حجم المجموعة + المتأهلين قوة 2
-                ValidateCupStructure(cup.Format, accepted.Count, cup.GroupSize, cup.TeamsAdvancingPerGroup);
-
+                ValidateCupStructure(cup.Format, accepted.Count, cup.GroupSize,
+                    cup.TeamsAdvancingPerGroup, cup.WildcardsAdvancing);
                 // الطلبات المعلقة تتقفل
                 foreach (var p in (await _cupRepo.GetPendingTeamsByCupAsync(cupId)).ToList())
                     await _cupRepo.RejectTeamAsync(p.Id);
 
                 cup.MaxTeams = accepted.Count;
                 cup.CurrentTeamCount = accepted.Count;
-                cup.Status = CupStatus.GroupStage;
                 await _cupRepo.UpdateAsync(cup);
 
-                await GenerateGroupsAsync(cupId);
-                await GenerateGroupMatchesAsync(cupId);
+                await StartCompetitionAsync(cup);
                 started = cup;
             });
 
@@ -1237,8 +1223,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                 }
             }
 
-            CreateKnockoutBracket(cupId, groups.Count, cup.TeamsAdvancingPerGroup, matches);
-            await _cupRepo.CreateMatchesAsync(matches);
+            CreateKnockoutBracket(cupId, groups.Count, cup.TeamsAdvancingPerGroup,
+                                  cup.WildcardsAdvancing, matches); await _cupRepo.CreateMatchesAsync(matches);
 
             // لو الجدولة فشلت (مفيش مواعيد) ما نكسرش بدء الكأس:
             // المباريات تفضل Pending والأدمن يعمل "إعادة توليد الجدول"
@@ -1250,13 +1236,10 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         }
 
         private static void CreateKnockoutBracket(
-            int cupId,
-            int groupCount,
-            int teamsAdvancingPerGroup,
-            List<CupMatch> matches)
+      int cupId, int groupCount, int teamsAdvancingPerGroup,
+      int wildcards, List<CupMatch> matches)
         {
-            int knockoutTeams = groupCount * teamsAdvancingPerGroup;
-
+            int knockoutTeams = groupCount * teamsAdvancingPerGroup + wildcards;
             bool isPowerOfTwo = knockoutTeams >= 2 && (knockoutTeams & (knockoutTeams - 1)) == 0;
             if (!isPowerOfTwo)
                 throw new BusinessException(
@@ -1307,6 +1290,44 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
             }
         }
 
+        /// يبدأ المنافسة حسب نظام الكأس. يُستدعى داخل transaction.
+        private async Task StartCompetitionAsync(Cup cup)
+        {
+            if (cup.Format == CupFormat.SingleElimination)
+            {
+                await GenerateKnockoutOnlyAsync(cup);
+                cup.Status = CupStatus.KnockoutStage;
+            }
+            else
+            {
+                await GenerateGroupsAsync(cup.Id);
+                await GenerateGroupMatchesAsync(cup.Id);
+                cup.Status = CupStatus.GroupStage;
+            }
+            await _cupRepo.UpdateAsync(cup);
+        }
+
+        private async Task GenerateKnockoutOnlyAsync(Cup cup)
+        {
+            var teams = (await _cupRepo.GetAcceptedTeamsByCupAsync(cup.Id))
+                .OrderBy(_ => Guid.NewGuid())          // قرعة عشوائية
+                .ToList();
+
+            if (teams.Count < 2 || teams.Count > MaxKnockoutTeams)
+                throw new BusinessException(
+                    messageAr: $"عدد الفرق في الكأس الإقصائي يجب أن يكون بين 2 و {MaxKnockoutTeams}.",
+                    messageEn: $"A knockout cup needs between 2 and {MaxKnockoutTeams} teams.");
+
+            var matches = BracketHelper.Build(cup.Id, teams.Select(t => t.Id).ToList(), firstRound: 1);
+            await _cupRepo.CreateMatchesAsync(matches);
+
+            // لو الجدولة فشلت ما نكسرش بدء الكأس، الأدمن يعمل "إعادة توليد الجدول"
+            if (cup.ScheduleMode == CupScheduleMode.Automatic)
+            {
+                try { await scheduler.ScheduleAsync(cup); }
+                catch (BusinessException) { }
+            }
+        }
         // ─── Status Transition Validator ──────────────────────────────────────
 
         private static void ValidateStatusTransition(CupStatus current, CupStatus next)
@@ -1350,10 +1371,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
         // ─── Structure / Schedule Validation ──────────────────────────────────
 
         private static void ValidateCupStructure(
-            CupFormat format,
-            int maxTeams,
-            int groupSize,
-            int teamsAdvancingPerGroup)
+      CupFormat format, int maxTeams, int groupSize,
+      int teamsAdvancingPerGroup, int wildcards = 0)
         {
             if (maxTeams < 2)
                 throw new BusinessException(
@@ -1362,15 +1381,15 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
 
             if (format == CupFormat.SingleElimination)
             {
-                throw new BusinessException(
-                    messageAr: "نظام خروج المغلوب المباشر غير مدعوم حاليًا.",
-                    messageEn: "Single elimination format is not supported yet.");
+                if (maxTeams > MaxKnockoutTeams)
+                    throw new BusinessException(
+                        messageAr: $"الحد الأقصى للفرق في الكأس الإقصائي هو {MaxKnockoutTeams}.",
+                        messageEn: $"A knockout cup supports at most {MaxKnockoutTeams} teams.");
+                return;   // groupSize / advancing / wildcards مش بيفرقوا هنا
             }
 
             if (format != CupFormat.RoundRobin)
-                throw new BusinessException(
-                    messageAr: "نظام البطولة غير صالح.",
-                    messageEn: "Invalid cup format.");
+                throw new BusinessException("نظام البطولة غير صالح.", "Invalid cup format.");
 
             if (groupSize < 2 || groupSize > maxTeams)
                 throw new BusinessException(
@@ -1382,25 +1401,26 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.Services
                     messageAr: "عدد الفرق يجب أن يقبل القسمة على حجم المجموعة دون باقٍ.",
                     messageEn: "MaxTeams must be divisible by GroupSize.");
 
-            if (teamsAdvancingPerGroup < 1 ||
-                teamsAdvancingPerGroup >= groupSize)
+            if (teamsAdvancingPerGroup < 1 || teamsAdvancingPerGroup >= groupSize)
                 throw new BusinessException(
                     messageAr: "عدد المتأهلين يجب أن يكون واحدًا على الأقل وأقل من حجم المجموعة.",
                     messageEn: "TeamsAdvancingPerGroup must be at least 1 and less than GroupSize.");
 
             int groupCount = maxTeams / groupSize;
-            int knockoutTeams = groupCount * teamsAdvancingPerGroup;
 
-            bool isPowerOfTwo =
-                knockoutTeams >= 2 &&
-                (knockoutTeams & (knockoutTeams - 1)) == 0;
+            if (wildcards < 0 || (wildcards > 0 && wildcards >= groupCount))
+                throw new BusinessException(
+                    messageAr: "عدد المتأهلين الإضافيين يجب أن يكون أقل من عدد المجموعات.",
+                    messageEn: "Wildcard teams must be fewer than the number of groups.");
+
+            int knockoutTeams = groupCount * teamsAdvancingPerGroup + wildcards;
+            bool isPowerOfTwo = knockoutTeams >= 2 && (knockoutTeams & (knockoutTeams - 1)) == 0;
 
             if (!isPowerOfTwo)
                 throw new BusinessException(
                     messageAr: $"عدد المتأهلين للأدوار الإقصائية ({knockoutTeams}) يجب أن يكون قوة للعدد 2.",
                     messageEn: $"The number of knockout teams ({knockoutTeams}) must be a power of 2.");
         }
-
         private static void ValidateSchedule(Cup c)
         {
             if (c.MatchDurationMinutes is < 10 or > 180)

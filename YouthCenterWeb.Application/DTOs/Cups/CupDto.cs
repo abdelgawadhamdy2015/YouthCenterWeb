@@ -44,6 +44,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
         public int RestDaysBetweenRounds { get; set; } = 0;
         public DateTime RegistrationDeadline { get; set; }
         public DateTime StartDate { get; set; }
+        public int WildcardsAdvancing { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

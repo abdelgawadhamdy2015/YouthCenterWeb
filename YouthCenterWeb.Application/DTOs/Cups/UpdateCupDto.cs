@@ -34,7 +34,7 @@ namespace YouthCenterWeb.YouthCenterWeb.Application.DTOs.Cups
         public int? RestDaysBetweenRounds { get; set; }
 
         public DateTime? RegistrationDeadline { get; set; }
-
+        public int? WildcardsAdvancing { get; set; }
         public DateTime? StartDate { get; set; }
     }
 }

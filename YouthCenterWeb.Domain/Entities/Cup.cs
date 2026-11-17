@@ -71,8 +71,8 @@ namespace YouthCenterWeb.YouthCenterWeb.Domain.Entities
         /// Bitmask: Sunday=bit0 ... Saturday=bit6. 127 = كل الأيام
         public int PlayDaysMask { get; set; } = 127;
         public int RestDaysBetweenRounds { get; set; } = 0;
-
-
+        /// عدد "أفضل الفرق التالية" المتأهلة (مثلاً أفضل الثوالث). 0 = معطّل
+        public int WildcardsAdvancing { get; set; } = 0;
         // ── Navigation ──────────────────────────────────────────────────────
 
         public ICollection<CupTeam> Teams { get; set; } = new List<CupTeam>();
